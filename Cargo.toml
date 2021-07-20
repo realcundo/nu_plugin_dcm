@@ -15,6 +15,7 @@ nu-plugin = "0.34"
 nu-protocol = "0.34"
 nu-source = "0.34"
 nu-errors = "0.34"
+nu-value-ext = "0.34"
 
 [profile.release]
 lto = true

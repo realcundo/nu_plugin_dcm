@@ -8,7 +8,7 @@ use nu_protocol::{UntaggedValue, Value};
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
 pub struct DicomDump<'a, 'b> {
-    pub dictionary: &'a dyn DataDictionary<Entry = DictionaryEntryRef<'b>>,
+    pub dcm_dictionary: &'a dyn DataDictionary<Entry = DictionaryEntryRef<'b>>,
 }
 
 impl DicomDump<'_, '_> {
@@ -26,7 +26,7 @@ impl DicomDump<'_, '_> {
         let vr = header.vr;
 
         let key = self
-            .dictionary
+            .dcm_dictionary
             .by_tag(header.tag)
             .map(|r| r.alias.to_string())
             .unwrap_or_else(|| format!("{:04X},{:04X}", header.tag.group(), header.tag.element()));
