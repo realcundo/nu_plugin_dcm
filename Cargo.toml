@@ -2,12 +2,18 @@
 name = "nu_plugin_dcm"
 version = "0.1.0"
 edition = "2018"
+license = "MIT"
+description = "A nushell plugin to parse Dicom files"
+homepage = "https://github.com/realcundo/nu_plugin_dcm"
+repository = "https://github.com/realcundo/nu_plugin_dcm"
+readme = "README.md"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 dicom = "0.4"
-indexmap = "1.7" # must match the one from nu
+indexmap = "1.7" # to match the version from nu
 itertools = "0.10"
 bigdecimal = "0.2"
 
