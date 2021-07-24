@@ -86,7 +86,7 @@ impl DcmPlugin {
             UntaggedValue::Primitive(Primitive::FilePath(path)) => {
                 let obj = dicom_object::open_file(path).map_err(|e| {
                     ShellError::labeled_error(
-                        e.to_string(),
+                        format!("{} [file {}]", e, path.to_string_lossy()),
                         "'dcm' expects a valid Dicom file",
                         tag.span,
                     )
@@ -97,7 +97,7 @@ impl DcmPlugin {
             UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
                 let obj = dicom_object::open_file(path_as_string).map_err(|e| {
                     ShellError::labeled_error(
-                        e.to_string(),
+                        format!("{} [file {}]", e, path_as_string),
                         "'dcm' expects a valid Dicom file",
                         tag.span,
                     )
