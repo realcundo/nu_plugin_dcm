@@ -25,7 +25,7 @@ struct DcmPlugin {
 impl Plugin for DcmPlugin {
     fn config(&mut self) -> Result<Signature, ShellError> {
         Ok(Signature::build("dcm")
-            .desc("Parse Dicom object")
+            .desc("Parse Dicom object from file or binary data")
             .optional(
                 "column",
                 SyntaxShape::ColumnPath,
@@ -35,7 +35,7 @@ impl Plugin for DcmPlugin {
     }
 
     fn begin_filter(&mut self, call_info: CallInfo) -> Result<Vec<ReturnValue>, ShellError> {
-        // nu make sure the num of args and type is correct
+        // nu makes sure the num of args and type is correct
         if let Some(column) = call_info.args.nth(0) {
             if let UntaggedValue::Primitive(Primitive::ColumnPath(column)) = &column.value {
                 self.source_column = Some(column.clone());
@@ -45,19 +45,21 @@ impl Plugin for DcmPlugin {
         Ok(vec![])
     }
 
-    fn filter(&mut self, input: Value) -> Result<Vec<ReturnValue>, ShellError> {
+    fn filter(&mut self, value: Value) -> Result<Vec<ReturnValue>, ShellError> {
+        let tag = value.tag();
+
         // use source column if known
         if let Some(source_column) = &self.source_column {
             // FIXME error handling
-            let value = get_data_by_column_path(&input, source_column, |_v, _p, e| e)?;
+            let value = get_data_by_column_path(&value, source_column, |_v, _p, e| e)?;
 
             match &value.value {
-                UntaggedValue::Primitive(_) => self.process_value(&input, &value),
+                UntaggedValue::Primitive(_) => self.process_value(tag, &value),
                 UntaggedValue::Table(ref t) => {
                     let mut result = Vec::with_capacity(t.len());
 
                     for e in t {
-                        result.extend(self.process_value(&input, e)?);
+                        result.extend(self.process_value(tag.clone(), e)?);
                     }
 
                     Ok(result)
@@ -68,23 +70,27 @@ impl Plugin for DcmPlugin {
             }
         } else {
             // expect a primitive value if column is not known
-            self.process_value(&input, &input)
+            self.process_value(tag, &value)
         }
     }
 }
 
 impl DcmPlugin {
-    fn process_value(&self, input: &Value, value: &Value) -> Result<Vec<ReturnValue>, ShellError> {
+    fn process_value(
+        &self,
+        tag: nu_source::Tag,
+        value: &Value,
+    ) -> Result<Vec<ReturnValue>, ShellError> {
         match &value.value {
             UntaggedValue::Primitive(Primitive::FilePath(path)) => {
                 // FIXME error handling
                 let obj = dicom_object::open_file(path).unwrap();
-                self.process_dicom_object(input, obj)
+                self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
                 // FIXME error handling
                 let obj = dicom_object::open_file(path_as_string).unwrap();
-                self.process_dicom_object(input, obj)
+                self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::Binary(data)) => {
                 // FIXME error handling
@@ -92,30 +98,30 @@ impl DcmPlugin {
                 cursor.seek(SeekFrom::Start(128)).unwrap(); // FIXME skip preamble. This is what open_file() does unconditionally.
 
                 let obj = dicom_object::from_reader(cursor).unwrap();
-                self.process_dicom_object(input, obj)
+                self.process_dicom_object(tag, obj)
             }
             _ => Err(ShellError::labeled_error(
                 "Unrecognized type in stream",
                 "'dcm' expects a filepath, binary, string or a column path",
-                input.tag.span,
+                tag.span,
             )),
         }
     }
 
     fn process_dicom_object(
         &self,
-        input: &Value,
+        tag: nu_source::Tag,
         obj: DefaultDicomObject,
     ) -> Result<Vec<ReturnValue>, ShellError> {
         let dcm_dumper = dcm::DicomDump {
             dcm_dictionary: &self.dcm_dictionary,
         };
 
-        let data_row = Value::new(dcm_dumper.make_row_from_dicom_object(&obj), input.tag());
-        let meta_row = Value::new(make_row_from_dicom_metadata(obj.meta()), input.tag());
+        let data_row = Value::new(dcm_dumper.make_row_from_dicom_object(&obj), tag.clone());
+        let meta_row = Value::new(make_row_from_dicom_metadata(obj.meta()), tag.clone());
 
         // TODO flatten?
-        let mut d = TaggedDictBuilder::with_capacity(input.tag(), 2);
+        let mut d = TaggedDictBuilder::with_capacity(tag, 2);
         d.insert_value("metadata".to_string(), meta_row);
         d.insert_value("data".to_string(), data_row);
 
