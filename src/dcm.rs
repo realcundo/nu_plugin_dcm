@@ -12,16 +12,20 @@ pub struct DicomDump<'a, 'b> {
 }
 
 impl DicomDump<'_, '_> {
-    pub fn make_row_from_dicom_object(&self, obj: &InMemDicomObject) -> UntaggedValue {
-        let mut d = IndexMap::with_capacity(44);
-
+    pub fn make_row_from_dicom_object(
+        &self,
+        index_map: &mut IndexMap<String, Value>,
+        obj: &InMemDicomObject,
+    ) {
         obj.into_iter()
-            .for_each(|elem| self.make_data_from_dicom_element(&mut d, elem));
-
-        UntaggedValue::row(d)
+            .for_each(|elem| self.make_data_from_dicom_element(index_map, elem));
     }
 
-    fn make_data_from_dicom_element(&self, d: &mut IndexMap<String, Value>, elem: &InMemElement) {
+    fn make_data_from_dicom_element(
+        &self,
+        index_map: &mut IndexMap<String, Value>,
+        elem: &InMemElement,
+    ) {
         let header = elem.header();
         let vr = header.vr;
 
@@ -35,12 +39,16 @@ impl DicomDump<'_, '_> {
             DicomValue::Sequence { items, size: _ } => {
                 let rows: Vec<Value> = items
                     .iter()
-                    .map(|obj| self.make_row_from_dicom_object(obj).into())
+                    .map(|obj| {
+                        let mut nested_index_map = IndexMap::with_capacity(1000);
+                        self.make_row_from_dicom_object(&mut nested_index_map, obj);
+                        UntaggedValue::Row(nested_index_map.into()).into()
+                    })
                     .collect();
 
                 // TODO nu doesn't require rows to have identical columns but it'd be more predictable to
                 // normalise them and fill in the gaps. For now assume DCM items are identical.
-                d.insert(key, UntaggedValue::Table(rows).into());
+                index_map.insert(key, UntaggedValue::Table(rows).into());
             }
             DicomValue::PixelSequence {
                 offset_table: _,
@@ -69,7 +77,7 @@ impl DicomDump<'_, '_> {
                     | VR::UC // TODO
                     | VR::UN // TODO
                     | VR::UT => {
-                        d.insert(key, Stringlike(value).into());
+                        index_map.insert(key, Stringlike(value).into());
                     }
                     VR::DA
                     | VR::IS
@@ -80,10 +88,10 @@ impl DicomDump<'_, '_> {
                     | VR::SL
                     | VR::UL
                     | VR::UV => {
-                        d.insert(key, Integerlike(value).into());
+                        index_map.insert(key, Integerlike(value).into());
                     }
                     VR::TM | VR::DS | VR::FD | VR::FL | VR::OD | VR::OF => {
-                        d.insert(key, Decimallike(value).into());
+                        index_map.insert(key, Decimallike(value).into());
                     }
                 }
             }

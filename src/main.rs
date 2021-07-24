@@ -4,11 +4,12 @@ use crate::meta::make_row_from_dicom_metadata;
 
 use dicom::object::StandardDataDictionary;
 use dicom::object::{self as dicom_object, DefaultDicomObject};
+use indexmap::IndexMap;
 use nu_errors::ShellError;
 use nu_plugin::{serve_plugin, Plugin};
 use nu_protocol::{
     CallInfo, ColumnPath, Primitive, ReturnSuccess, ReturnValue, Signature, SyntaxShape,
-    TaggedDictBuilder, UntaggedValue, Value,
+    UntaggedValue, Value,
 };
 use nu_value_ext::get_data_by_column_path;
 
@@ -147,15 +148,13 @@ impl DcmPlugin {
             dcm_dictionary: &self.dcm_dictionary,
         };
 
-        let data_row = Value::new(dcm_dumper.make_row_from_dicom_object(&obj), tag.clone());
-        let meta_row = Value::new(make_row_from_dicom_metadata(obj.meta()), tag.clone());
+        // dump both metadata and data into a single table
+        let mut index_map = IndexMap::with_capacity(1000);
+        make_row_from_dicom_metadata(&mut index_map, obj.meta());
+        dcm_dumper.make_row_from_dicom_object(&mut index_map, &obj);
 
-        // TODO flatten?
-        let mut d = TaggedDictBuilder::with_capacity(tag, 2);
-        d.insert_value("metadata".to_string(), meta_row);
-        d.insert_value("data".to_string(), data_row);
-
-        Ok(vec![ReturnSuccess::value(d.into_value())])
+        let value = Value::new(UntaggedValue::Row(index_map.into()), tag);
+        Ok(vec![Ok(ReturnSuccess::Value(value))])
     }
 }
 
