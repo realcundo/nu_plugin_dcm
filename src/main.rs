@@ -1,3 +1,5 @@
+use std::io::{Cursor, Seek, SeekFrom};
+
 use crate::meta::make_row_from_dicom_metadata;
 
 use dicom::object::StandardDataDictionary;
@@ -73,19 +75,28 @@ impl Plugin for DcmPlugin {
 
 impl DcmPlugin {
     fn process_value(&self, input: &Value, value: &Value) -> Result<Vec<ReturnValue>, ShellError> {
-        // TODO not only process filenames but also binary data
         match &value.value {
             UntaggedValue::Primitive(Primitive::FilePath(path)) => {
+                // FIXME error handling
                 let obj = dicom_object::open_file(path).unwrap();
                 self.process_dicom_object(input, obj)
             }
             UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
+                // FIXME error handling
                 let obj = dicom_object::open_file(path_as_string).unwrap();
+                self.process_dicom_object(input, obj)
+            }
+            UntaggedValue::Primitive(Primitive::Binary(data)) => {
+                // FIXME error handling
+                let mut cursor = Cursor::new(data);
+                cursor.seek(SeekFrom::Start(128)).unwrap(); // FIXME skip preamble. This is what open_file() does unconditionally.
+
+                let obj = dicom_object::from_reader(cursor).unwrap();
                 self.process_dicom_object(input, obj)
             }
             _ => Err(ShellError::labeled_error(
                 "Unrecognized type in stream",
-                "'dcm' expects a filepath or a string",
+                "'dcm' expects a filepath, binary, string or a column path",
                 input.tag.span,
             )),
         }
