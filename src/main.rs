@@ -65,8 +65,8 @@ impl Plugin for DcmPlugin {
                     Ok(result)
                 }
                 UntaggedValue::Row(_) => todo!("get_data_by_column_path row branch"),
-                UntaggedValue::Error(_) => todo!("get_data_by_column_path error branch"),
                 UntaggedValue::Block(_) => todo!("get_data_by_column_path block branch"),
+                UntaggedValue::Error(e) => Err(e.clone()),
             }
         } else {
             // expect a primitive value if column is not known
@@ -83,21 +83,51 @@ impl DcmPlugin {
     ) -> Result<Vec<ReturnValue>, ShellError> {
         match &value.value {
             UntaggedValue::Primitive(Primitive::FilePath(path)) => {
-                // FIXME error handling
-                let obj = dicom_object::open_file(path).unwrap();
+                let obj = dicom_object::open_file(path).map_err(|e| {
+                    ShellError::labeled_error(
+                        e.to_string(),
+                        "'dcm' expects a valid Dicom file",
+                        tag.span,
+                    )
+                })?;
+
                 self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
-                // FIXME error handling
-                let obj = dicom_object::open_file(path_as_string).unwrap();
+                let obj = dicom_object::open_file(path_as_string).map_err(|e| {
+                    ShellError::labeled_error(
+                        e.to_string(),
+                        "'dcm' expects a valid Dicom file",
+                        tag.span,
+                    )
+                })?;
+
                 self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::Binary(data)) => {
-                // FIXME error handling
                 let mut cursor = Cursor::new(data);
-                cursor.seek(SeekFrom::Start(128)).unwrap(); // FIXME skip preamble. This is what open_file() does unconditionally.
 
-                let obj = dicom_object::from_reader(cursor).unwrap();
+                // FIXME don't assume the preamble
+                cursor
+                    .seek(SeekFrom::Start(128))
+                    .ok()
+                    .filter(|new_pos| *new_pos == 128) // Unexpectedly this is true even for binaries < 128 bytes long
+                    .ok_or_else(|| {
+                        ShellError::labeled_error(
+                            "Cannot read Dicom preamble",
+                            "'dcm' expects valid Dicom binary data",
+                            tag.span,
+                        )
+                    })?;
+
+                let obj = dicom_object::from_reader(cursor).map_err(|e| {
+                    ShellError::labeled_error(
+                        e.to_string(),
+                        "'dcm' expects valid Dicom binary data",
+                        tag.span,
+                    )
+                })?;
+
                 self.process_dicom_object(tag, obj)
             }
             _ => Err(ShellError::labeled_error(
