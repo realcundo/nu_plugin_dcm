@@ -46,10 +46,24 @@ impl Plugin for DcmPlugin {
     fn filter(&mut self, input: Value) -> Result<Vec<ReturnValue>, ShellError> {
         // use source column if known
         if let Some(source_column) = &self.source_column {
-            // TODO error handling
-            // FIXME doesn't work with "foo.bar" only with single "foo"...
+            // FIXME error handling
             let value = get_data_by_column_path(&input, source_column, |_v, _p, e| e)?;
-            self.process_value(&input, &value)
+
+            match &value.value {
+                UntaggedValue::Primitive(_) => self.process_value(&input, &value),
+                UntaggedValue::Table(ref t) => {
+                    let mut result = Vec::with_capacity(t.len());
+
+                    for e in t {
+                        result.extend(self.process_value(&input, e)?);
+                    }
+
+                    Ok(result)
+                }
+                UntaggedValue::Row(_) => todo!("get_data_by_column_path row branch"),
+                UntaggedValue::Error(_) => todo!("get_data_by_column_path error branch"),
+                UntaggedValue::Block(_) => todo!("get_data_by_column_path block branch"),
+            }
         } else {
             // expect a primitive value if column is not known
             self.process_value(&input, &input)
@@ -100,7 +114,6 @@ impl DcmPlugin {
 
 fn main() {
     let mut plugin = DcmPlugin::default();
-    // XXXlet mut dumper = dcm::DicomDump { dictionary: &dict };
 
     // cargo install --path .
     // echo $files | merge { echo $files.name | dcm | get data | select Modality PixelSpacing.0 PixelSpacing.1 } | sort-by Modality name
