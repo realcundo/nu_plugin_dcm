@@ -64,7 +64,9 @@ find . -type f | lines | dcm | default Modality '???' | histogram Modality
 
 ## Installation
 
-Build and install the plugin to your `PATH` using
+Build and install in the same directory as `nu` command. Alternatively add the installation path to your
+[`plugin_dirs` in your `config.toml`](https://www.nushell.sh/book/configuration.html#nushell-configuration-with-config-toml).
 ```sh
 cargo install nu_plugin_dcm
 ```
+Note that at the time of writing the Nu documentation is out of date and `PATH` env variable is NOT used to discover plugins.
