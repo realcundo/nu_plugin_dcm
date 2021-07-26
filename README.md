@@ -30,9 +30,9 @@ I'm still trying to figure out what is the most useful way of using this plugin.
 ```sh
 echo file.dcm | dcm                # uses filename/string to specify which file to open
 open file.dcm | dcm                # pass binary data to `dcm`
-ls I4 | dcm name                   # use `name` column as the filename
+ls file.dcm | dcm name             # use `name` column as the filename
 echo file.dcm | wrap foo | dcm foo # use `foo` column as the filename
-open I4 | wrap foo | dcm foo       # use `foo` column as binary data
+open file.dcm | wrap foo | dcm foo # use `foo` column as binary data
 ```
 
 ### Dump Dicom file as a JSON/YAML document
@@ -72,7 +72,8 @@ echo $files | select name size | merge { echo $files | get name | dcm -s | selec
 
 ### Find all files in the current directory and subdirectories, parse them and output a histogram of modalities
 
-Note that not all Dicom files have `(0008,0060)` Modality tag available. This will default missing to `???`.
+Note that not all Dicom files have `(0008,0060)` Modality tag available. This will default missing
+Modality tags to `???`.
 ```sh
 find . -type f | lines | dcm | default Modality '???' | histogram Modality
 ```
