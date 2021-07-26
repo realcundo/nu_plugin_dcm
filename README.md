@@ -13,6 +13,16 @@ I'm still trying to figure out what is the most useful way of using this plugin.
 - `dcm $column_name`: reads a string/filename or binary Dicom data from `$column`. This is
   equivalent to `get $column | dcm`.
 
+## Error handling
+
+`dcm` plugin works in two modes:
+- default, when errors are not skipped: each input is processed and errors are reported back to
+  `nu` and they are not included in the output. This makes output potentially shorter than the
+  input.
+- skip errors using `-s`/`--silent-errors` flag: errors are output as empty values. This means that
+  the output has exactly the same number of rows as the input. This mode is suitable for
+  merging tables (e.g. table of files and table of parsed dicom objects).
+
 
 ## Examples
 
@@ -38,20 +48,26 @@ ls *.dcm | dcm name | to yaml
 ```
 
 ### For each file in the current directory, show the filename, file size, SOP Instance UID, Modality and Pixel Spacing and sort by SOP Instance UID
-PixelSpacing is an array with 2 values. To flatten the array use `.0` and `.1` indices.
+PixelSpacing is an array with 2 values.
+
+To flatten the array use `.0` and `.1` indices. `dcm` is
+run using `--silent-errors`/`-s` to make sure that both `$files` and `dcm` have the same number of
+rows. Without the flag the output of `dcm` could be shorted if Dicom object couldn't be parsed
+resulting in incorrect merge.
+
 ```sh
 let files = (ls | where type == File)
 
-echo $files | select name size | merge { echo $files | dcm name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+echo $files | select name size | merge { echo $files | dcm -s name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 ```
 
 `dcm name` is a shortcut for `get name | dcm`. The following commands are equivalent:
 ```sh
-echo $files | select name size | merge { echo $files | dcm name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+echo $files | select name size | merge { echo $files | dcm -s name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 
-echo $files | select name size | merge { echo $files.name | dcm | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+echo $files | select name size | merge { echo $files.name | dcm -s | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 
-echo $files | select name size | merge { echo $files | get name | dcm | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+echo $files | select name size | merge { echo $files | get name | dcm -s | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 ```
 
 ### Find all files in the current directory and subdirectories, parse them and output a histogram of modalities
