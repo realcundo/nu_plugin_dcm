@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "nu_plugin_dcm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bigdecimal",
  "dicom",
