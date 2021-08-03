@@ -5,6 +5,7 @@ use dicom::core::PrimitiveValue;
 use itertools::Itertools;
 use nu_protocol::{Primitive, UntaggedValue};
 
+#[allow(clippy::ptr_arg)]
 pub fn trim_string(s: &String) -> &str {
     const TRIM_CHARS: &[char] = &[' ', '\t', '\n', '\r', '\0'];
     s.trim_matches(TRIM_CHARS)
