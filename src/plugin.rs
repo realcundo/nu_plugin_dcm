@@ -17,9 +17,9 @@ use crate::dcm;
 
 #[derive(Default)]
 pub struct DcmPlugin {
-    dcm_dictionary: StandardDataDictionary,
-    source_column: Option<ColumnPath>,
-    silent_errors: bool,
+    pub dcm_dictionary: StandardDataDictionary,
+    pub source_column: Option<ColumnPath>,
+    pub silent_errors: bool,
 }
 
 impl Plugin for DcmPlugin {

@@ -23,6 +23,11 @@ nu-source = "0.35"
 nu-errors = "0.35"
 nu-value-ext = "0.35"
 
+[dev-dependencies]
+nu-test-support = "0.35"
+assert_matches = "1.5"
+
+
 [profile.release]
 lto = true
 opt-level = 2
