@@ -80,6 +80,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono-humanize"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eddc119501d583fd930cb92144e605f44e0252c38dd89d9247fffa1993375cb"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -128,9 +137,9 @@ dependencies = [
 
 [[package]]
 name = "dicom-core"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e845500d74e6053e5eb07545cc936767a32f277bf183a2954be44def6a74fc41"
+checksum = "05caef06219912e7c4a29cada30ffc24e8c24194dc69fea7d8c5d67a74a3edfd"
 dependencies = [
  "chrono",
  "itertools",
@@ -448,9 +457,9 @@ checksum = "b16bd47d9e329435e309c58469fe0791c2d0d1ba96ec0954152a5ae2b04387dc"
 
 [[package]]
 name = "nu-ansi-term"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cccf5ce0705f83c8afb776d00fe071ab994148efdd8e060909c6614b0fe740af"
+checksum = "fd9cd2c36eb2e7ea4bef48f0f45004c76a0ca8227ae859bb6e650e554ae9aa52"
 dependencies = [
  "itertools",
  "overload",
@@ -459,9 +468,9 @@ dependencies = [
 
 [[package]]
 name = "nu-errors"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "606f828ec1cf6f8a3563414c8cfbc5d9b0f6e88848c9eaa83a629a9a32e73eb1"
+checksum = "b4fb0e109a06f37baead4d96250e6e41bc32d3783f9eba4210fa9c2c988ce880"
 dependencies = [
  "bigdecimal",
  "codespan-reporting",
@@ -480,9 +489,9 @@ dependencies = [
 
 [[package]]
 name = "nu-plugin"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bcf7f024d1cd193c9a12a1457aea8d60f20aa2c5180f787a3b85ef17a5799fd"
+checksum = "5a4eb5c973344c1c681679b8494a0612a6e1e6e36459f5b55988fedff57cfe82"
 dependencies = [
  "bigdecimal",
  "indexmap",
@@ -498,13 +507,14 @@ dependencies = [
 
 [[package]]
 name = "nu-protocol"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "665bacf86d1ee96dee15214e2a71c1702141a3a1ae9711b3f6f9aad011078bf9"
+checksum = "f1d2aed718fc5fe5e61852cc8bad31270f2ee50532f16d8e9b5be299717d16b3"
 dependencies = [
  "bigdecimal",
  "byte-unit",
  "chrono",
+ "chrono-humanize",
  "derive-new",
  "getset",
  "indexmap",
@@ -523,9 +533,9 @@ dependencies = [
 
 [[package]]
 name = "nu-source"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1f4a3471820067521ce4cc6a3bdbdbded8fd23ff4b3f19a1c7af4799ef3c042"
+checksum = "b10d9b60c91a0f4bae462106a08a73de888bf735d99a9f52d2983943c22b99f8"
 dependencies = [
  "derive-new",
  "getset",
@@ -536,9 +546,9 @@ dependencies = [
 
 [[package]]
 name = "nu-test-support"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afa38cb76532e5dc7ba50d89bd97af4ed05ddf12789860fdc8cd95fc597df9c0"
+checksum = "015fe4f633ec0b8aa57781c480b29a6f21b4c9518c01e4a40e4375d18ed8d2d3"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -557,9 +567,9 @@ dependencies = [
 
 [[package]]
 name = "nu-value-ext"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ee35194405079b5d1c5f34c4e5cc47e1bfbc48370149c7f467f7f16e59b5db0"
+checksum = "be74dca1db1c18affca6f13f8e31db4adf380c66f4aef3eceb41f97de0f3bb03"
 dependencies = [
  "indexmap",
  "itertools",
@@ -825,9 +835,9 @@ checksum = "98a01dab6acf992653be49205bdd549f32f17cb2803e8eacf1560bf97259aae8"
 
 [[package]]
 name = "serde"
-version = "1.0.126"
+version = "1.0.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
+checksum = "f03b9878abf6d14e6779d3f24f07b2cfa90352cfec4acc5aab8f1ac7f146fae8"
 dependencies = [
  "serde_derive",
 ]
@@ -843,9 +853,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.126"
+version = "1.0.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "963a7dbc9895aeac7ac90e74f34a5d5261828f79df35cbed41e10189d3804d43"
+checksum = "a024926d3432516606328597e0f224a51355a493b49fdd67e9209187cbe55ecc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -854,9 +864,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.64"
+version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79"
+checksum = "336b10da19a12ad094b59d870ebde26a45402e5b470add4b5fd03c5048a32127"
 dependencies = [
  "itoa",
  "ryu",
