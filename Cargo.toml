@@ -7,7 +7,7 @@ description = "A nushell plugin to parse Dicom files"
 homepage = "https://github.com/realcundo/nu_plugin_dcm"
 repository = "https://github.com/realcundo/nu_plugin_dcm"
 readme = "README.md"
-
+include = ["src/**/*", "LICENSE", "README.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
