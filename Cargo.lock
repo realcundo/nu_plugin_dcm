@@ -587,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "nu_plugin_dcm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "assert_matches",
  "bigdecimal",
