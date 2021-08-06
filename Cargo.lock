@@ -600,6 +600,7 @@ dependencies = [
  "nu-source",
  "nu-test-support",
  "nu-value-ext",
+ "snafu",
 ]
 
 [[package]]

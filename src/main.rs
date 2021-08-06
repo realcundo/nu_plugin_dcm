@@ -2,6 +2,7 @@ mod convert;
 mod dcm;
 mod meta;
 mod plugin;
+mod reader;
 
 fn main() {
     let mut plugin = plugin::DcmPlugin::default();

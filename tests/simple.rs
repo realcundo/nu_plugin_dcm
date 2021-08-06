@@ -103,3 +103,66 @@ fn read_implicit_vr_little_endian_preamble() {
     let actual = actual.unwrap()[0].as_ref().unwrap().raw_value().unwrap();
     assert_eq!(actual, expected);
 }
+
+#[test]
+#[ignore]
+fn read_explicit_vr_big_endian_no_preamble() {
+    let filename = get_asset_filename("ExplicitVRBigEndian-NoPreamble.dcm");
+
+    let mut p = DcmPlugin::default();
+    let actual = p.filter(filepath(filename));
+
+    let expected = row(indexmap! {
+        "TransferSyntax".to_string() => string("1.2.840.10008.1.2.2"),
+        "MediaStorageSOPClassUID".to_string() => string("1.2.840.10008.5.1.4.1.1.2"),
+        "MediaStorageSOPInstanceUID".to_string() => string("1.2.3"),
+        "PatientName".to_string() => string("ExplicitVRBigEndian-Preamble"),
+
+    });
+
+    // TODO can't compare directly because ReturnSuccess doesn't impl == yet.
+    let actual = actual.unwrap()[0].as_ref().unwrap().raw_value().unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+#[ignore]
+fn read_explicit_vr_little_endian_no_preamble() {
+    let filename = get_asset_filename("ExplicitVRLittleEndian-NoPreamble.dcm");
+
+    let mut p = DcmPlugin::default();
+    let actual = p.filter(filepath(filename));
+
+    let expected = row(indexmap! {
+        "TransferSyntax".to_string() => string("1.2.840.10008.1.2.1"),
+        "MediaStorageSOPClassUID".to_string() => string("1.2.840.10008.5.1.4.1.1.2"),
+        "MediaStorageSOPInstanceUID".to_string() => string("1.2.3"),
+        "PatientName".to_string() => string("ExplicitVRLittleEndian-Preamble"),
+
+    });
+
+    // TODO can't compare directly because ReturnSuccess doesn't impl == yet.
+    let actual = actual.unwrap()[0].as_ref().unwrap().raw_value().unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+#[ignore]
+fn read_implicit_vr_little_endian_no_preamble() {
+    let filename = get_asset_filename("ImplicitVRLittleEndian-NoPreamble.dcm");
+
+    let mut p = DcmPlugin::default();
+    let actual = p.filter(filepath(filename));
+
+    let expected = row(indexmap! {
+        "TransferSyntax".to_string() => string("1.2.840.10008.1.2"),
+        "MediaStorageSOPClassUID".to_string() => string("1.2.840.10008.5.1.4.1.1.2"),
+        "MediaStorageSOPInstanceUID".to_string() => string("1.2.3"),
+        "PatientName".to_string() => string("ImplicitVRLittleEndian-Preamble"),
+
+    });
+
+    // TODO can't compare directly because ReturnSuccess doesn't impl == yet.
+    let actual = actual.unwrap()[0].as_ref().unwrap().raw_value().unwrap();
+    assert_eq!(actual, expected);
+}

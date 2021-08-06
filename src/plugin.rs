@@ -1,9 +1,10 @@
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::Cursor;
 
 use crate::meta::make_row_from_dicom_metadata;
+use crate::reader::{read_dcm_file, read_dcm_stream};
 
+use dicom::object::DefaultDicomObject;
 use dicom::object::StandardDataDictionary;
-use dicom::object::{self as dicom_object, DefaultDicomObject};
 use indexmap::IndexMap;
 use nu_errors::ShellError;
 use nu_plugin::Plugin;
@@ -106,7 +107,7 @@ impl DcmPlugin {
     ) -> Result<Vec<ReturnValue>, ShellError> {
         match &value.value {
             UntaggedValue::Primitive(Primitive::FilePath(path)) => {
-                let obj = dicom_object::open_file(path).map_err(|e| {
+                let obj = read_dcm_file(path).map_err(|e| {
                     ShellError::labeled_error(
                         format!("{} [file {}]", e, path.to_string_lossy()),
                         "'dcm' expects a valid Dicom file",
@@ -117,10 +118,10 @@ impl DcmPlugin {
                 self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
-                let obj = dicom_object::open_file(path_as_string).map_err(|e| {
+                let obj = read_dcm_file(path_as_string).map_err(|e| {
                     ShellError::labeled_error(
                         format!("{} [file {}]", e, path_as_string),
-                        "'dcm' expects a valid Dicom file",
+                        "'dcm' expects valid Dicom binary data",
                         tag.span,
                     )
                 })?;
@@ -128,22 +129,8 @@ impl DcmPlugin {
                 self.process_dicom_object(tag, obj)
             }
             UntaggedValue::Primitive(Primitive::Binary(data)) => {
-                let mut cursor = Cursor::new(data);
-
-                // FIXME don't assume the preamble
-                cursor
-                    .seek(SeekFrom::Start(128))
-                    .ok()
-                    .filter(|new_pos| *new_pos == 128) // Unexpectedly this is true even for binaries < 128 bytes long
-                    .ok_or_else(|| {
-                        ShellError::labeled_error(
-                            "Cannot read Dicom preamble",
-                            "'dcm' expects valid Dicom binary data",
-                            tag.span,
-                        )
-                    })?;
-
-                let obj = dicom_object::from_reader(cursor).map_err(|e| {
+                let cursor = Cursor::new(data);
+                let obj = read_dcm_stream(cursor).map_err(|e| {
                     ShellError::labeled_error(
                         e.to_string(),
                         "'dcm' expects valid Dicom binary data",

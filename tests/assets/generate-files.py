@@ -37,7 +37,7 @@ for transfer_syntax in [
     ExplicitVRBigEndian,
     # DeflatedExplicitVRLittleEndian, # TODO
 ]:
-    for preamble in [True]:
+    for preamble in [False, True]:
         suffix = "Preamble" if preamble else "NoPreamble"
         name = f"{transfer_syntax.__name__}-{suffix}"
         filename = f"{name}.dcm"
