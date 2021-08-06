@@ -9,14 +9,17 @@ use snafu::{ResultExt, Snafu};
 
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu(display("Could not read Dicom object"))]
+    #[snafu(display("Could not read Dicom object: {}", source))]
     Io { source: std::io::Error },
 
     #[snafu(display("Could not read Dicom preamble"))]
     Preamble,
 
-    #[snafu(display("Could not parse Dicom object"))]
+    #[snafu(display("Could not parse Dicom object: {}", source))]
     Dcm { source: dicom_object::Error },
+
+    #[snafu(display("Could not parse Dicom object (no preamble?): {}", source))]
+    DcmNoPreamble { source: dicom_object::Error },
 }
 
 pub fn read_dcm_file<P: AsRef<Path>>(path: P) -> Result<DefaultDicomObject, Error> {
@@ -53,5 +56,5 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
     input.seek(SeekFrom::Start(0)).with_context(|| Io)?;
 
     // TODO reading without preamble is not supported so this will always fail
-    dicom_object::from_reader(input).with_context(|| Dcm)
+    dicom_object::from_reader(input).with_context(|| DcmNoPreamble)
 }
