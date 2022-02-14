@@ -44,7 +44,7 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
                     .seek(SeekFrom::Current(-4))
                     .with_context(|_| IoSnafu)?;
 
-                return dicom_object::from_reader(input).with_context(|_| DcmSnafu);
+                return read_dcm_stream_without_pixel_data(input).with_context(|_| DcmSnafu);
             }
         }
         Err(e) => {
@@ -58,6 +58,15 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
     // Rewind to the start and try to read without the preamble
     input.seek(SeekFrom::Start(0)).with_context(|_| IoSnafu)?;
 
-    // TODO reading without preamble is not supported so this will always fail
-    dicom_object::from_reader(input).with_context(|_| DcmNoPreambleSnafu)
+    // TODO this will always fail -- dicom.rs needs DCIM magic to read meta
+    read_dcm_stream_without_pixel_data(input).with_context(|_| DcmNoPreambleSnafu)
+}
+
+fn read_dcm_stream_without_pixel_data<F: Read>(
+    input: F,
+) -> Result<DefaultDicomObject, dicom_object::Error> {
+    dicom_object::OpenFileOptions::new()
+        .read_until(dicom::dictionary_std::tags::PIXEL_DATA)
+        .read_preamble(dicom_object::file::ReadPreamble::Never)
+        .from_reader(input)
 }

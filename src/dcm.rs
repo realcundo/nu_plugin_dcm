@@ -54,7 +54,7 @@ impl DicomDump<'_, '_> {
                 offset_table: _,
                 fragments: _,
             } => {
-                // TODO pixel data
+                // no-op, pixel data are not read
             }
             DicomValue::Primitive(value) => {
                 match vr {
@@ -70,8 +70,8 @@ impl DicomDump<'_, '_> {
                     | VR::UR
                     | VR::AS // TODO
                     | VR::AT // TODO
-                    | VR::OB // TODO
-                    | VR::OW // TODO
+                    | VR::OB // TODO pixel data are never read
+                    | VR::OW // TODO pixel data are never read
                     | VR::SQ // TODO
                     | VR::SV // TODO
                     | VR::UC // TODO

@@ -1,6 +1,6 @@
 [package]
 name = "nu_plugin_dcm"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2018"
 license = "MIT"
 description = "A nushell plugin to parse Dicom files"
