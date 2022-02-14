@@ -23,6 +23,11 @@ I'm still trying to figure out what is the most useful way of using this plugin.
   the output has exactly the same number of rows as the input. This mode is suitable for
   merging tables (e.g. table of files and table of parsed dicom objects).
 
+## Known Limitations
+
+- Dicom objects without a preamble and DCIM header will fail to load.
+- PixelData is always skipped. For now I'm considering this to be a feature that speeds up Dicom parsing.
+
 
 ## Examples
 
