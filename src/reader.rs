@@ -8,6 +8,7 @@ use dicom::object::{self as dicom_object, DefaultDicomObject};
 use snafu::{ResultExt, Snafu};
 
 #[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
 pub enum Error {
     #[snafu(display("Could not read Dicom object: {}", source))]
     Io { source: std::io::Error },
@@ -24,7 +25,7 @@ pub enum Error {
 
 pub fn read_dcm_file<P: AsRef<Path>>(path: P) -> Result<DefaultDicomObject, Error> {
     let path = path.as_ref();
-    let input = BufReader::new(File::open(path).with_context(|| Io)?);
+    let input = BufReader::new(File::open(path).with_context(|_| IoSnafu)?);
     read_dcm_stream(input)
 }
 
@@ -39,9 +40,11 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
             // check if DICM
             if buf[128..132] == [b'D', b'I', b'C', b'M'] {
                 // need to rewind back 4 to get to the beginning of DCIM again
-                input.seek(SeekFrom::Current(-4)).with_context(|| Io)?;
+                input
+                    .seek(SeekFrom::Current(-4))
+                    .with_context(|_| IoSnafu)?;
 
-                return dicom_object::from_reader(input).with_context(|| Dcm);
+                return dicom_object::from_reader(input).with_context(|_| DcmSnafu);
             }
         }
         Err(e) => {
@@ -53,8 +56,8 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
     }
 
     // Rewind to the start and try to read without the preamble
-    input.seek(SeekFrom::Start(0)).with_context(|| Io)?;
+    input.seek(SeekFrom::Start(0)).with_context(|_| IoSnafu)?;
 
     // TODO reading without preamble is not supported so this will always fail
-    dicom_object::from_reader(input).with_context(|| DcmNoPreamble)
+    dicom_object::from_reader(input).with_context(|_| DcmNoPreambleSnafu)
 }

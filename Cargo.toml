@@ -12,8 +12,8 @@ include = ["src/**/*", "LICENSE", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-snafu = "0.6" # ideally should match dicom
-dicom = "0.4"
+snafu = "0.7" # ideally should match dicom
+dicom = "0.5.0-rc.2"
 indexmap = "1.7" # to match the version from nu
 itertools = "0.10"
 bigdecimal = "0.3"
