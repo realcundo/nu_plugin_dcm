@@ -16,16 +16,16 @@ snafu = "0.6" # ideally should match dicom
 dicom = "0.4"
 indexmap = "1.7" # to match the version from nu
 itertools = "0.10"
-bigdecimal = "0.2"
+bigdecimal = "0.3"
 
-nu-plugin = "0.35"
-nu-protocol = "0.35"
-nu-source = "0.35"
-nu-errors = "0.35"
-nu-value-ext = "0.35"
+nu-plugin = "0.44"
+nu-protocol = "0.44"
+nu-source = "0.44"
+nu-errors = "0.44"
+nu-value-ext = "0.44"
 
 [dev-dependencies]
-nu-test-support = "0.35"
+nu-test-support = "0.44"
 assert_matches = "1.5"
 
 
