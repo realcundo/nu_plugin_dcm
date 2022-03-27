@@ -1,5 +1,7 @@
 # nu_plugin_dcm
 
+*Note that this plugin works with nu>=0.60. If you want to use nu<=0.44, use version 0.1.3 of this plugin.*
+
 A [nushell](https://www.nushell.sh/) plugin to parse [Dicom](https://en.wikipedia.org/wiki/DICOM) objects.
 
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
@@ -42,13 +44,13 @@ open file.dcm | wrap foo | dcm foo # use `foo` column as binary data
 
 ### Dump Dicom file as a JSON/YAML document
 ```sh
-open file.dcm | dcm | to json --pretty 2
+open file.dcm | dcm | to json --indent 2
 open file.dcm | dcm | to yaml
 ```
 
 ### Dump all Dicom files in the current directory to a JSON/YAML document
 ```sh
-ls *.dcm | dcm name | to json --pretty 2
+ls *.dcm | dcm name | to json --indent 2
 ls *.dcm | dcm name | to yaml
 ```
 
@@ -61,7 +63,7 @@ rows. Without the flag the output of `dcm` could be shorted if Dicom object coul
 resulting in incorrect merge.
 
 ```sh
-let files = (ls | where type == File)
+let files = (ls | where type == file)
 
 echo $files | select name size | merge { echo $files | dcm -s name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 ```
@@ -75,20 +77,23 @@ echo $files | select name size | merge { echo $files.name | dcm -s | select SOPI
 echo $files | select name size | merge { echo $files | get name | dcm -s | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 ```
 
-### Find all files in the current directory and subdirectories, parse them and output a histogram of modalities
+### Find all files in the current directory and subdirectories, parse them and group by Modality
 
 Note that not all Dicom files have `(0008,0060)` Modality tag available. This will default missing
 Modality tags to `???`.
 ```sh
-find . -type f | lines | dcm | default Modality '???' | histogram Modality
+ls **/* | where type == file | dcm name | default Modality '???' | group-by Modality  
 ```
 
 
 ## Installation
 
-Build and install in the same directory as `nu` command. Alternatively add the installation path to your
-[`plugin_dirs` in your `config.toml`](https://www.nushell.sh/book/configuration.html#nushell-configuration-with-config-toml).
+Build and install using [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
 ```sh
 cargo install nu_plugin_dcm
 ```
-Note that at the time of writing the Nu documentation is out of date and `PATH` env variable is NOT used to discover plugins.
+and then register in nu via
+```sh
+register --encoding=json <PATH-TO-nu_plugin_dcm>/nu_plugin_dcm
+```
+Note that you **must** use `json` encoding. `capnp` is not supported yet.

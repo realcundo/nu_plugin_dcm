@@ -3,7 +3,7 @@ use dicom::{
     object::{mem::InMemElement, InMemDicomObject},
 };
 use indexmap::IndexMap;
-use nu_protocol::{UntaggedValue, Value};
+use nu_protocol::{Span, Spanned, Value};
 
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
@@ -14,15 +14,17 @@ pub struct DicomDump<'a, 'b> {
 impl DicomDump<'_, '_> {
     pub fn make_row_from_dicom_object(
         &self,
+        span: &Span,
         index_map: &mut IndexMap<String, Value>,
         obj: &InMemDicomObject,
     ) {
         obj.into_iter()
-            .for_each(|elem| self.make_data_from_dicom_element(index_map, elem));
+            .for_each(|elem| self.make_data_from_dicom_element(span, index_map, elem));
     }
 
     fn make_data_from_dicom_element(
         &self,
+        span: &Span,
         index_map: &mut IndexMap<String, Value>,
         elem: &InMemElement,
     ) {
@@ -41,14 +43,25 @@ impl DicomDump<'_, '_> {
                     .iter()
                     .map(|obj| {
                         let mut nested_index_map = IndexMap::with_capacity(1000);
-                        self.make_row_from_dicom_object(&mut nested_index_map, obj);
-                        UntaggedValue::Row(nested_index_map.into()).into()
+                        self.make_row_from_dicom_object(span, &mut nested_index_map, obj);
+
+                        let nested_index_map = Spanned {
+                            item: nested_index_map,
+                            span: *span,
+                        };
+
+                        Value::from(nested_index_map)
                     })
                     .collect();
 
                 // TODO nu doesn't require rows to have identical columns but it'd be more predictable to
                 // normalise them and fill in the gaps. For now assume DCM items are identical.
-                index_map.insert(key, UntaggedValue::Table(rows).into());
+                let table = Value::List {
+                    vals: rows,
+                    span: *span,
+                };
+
+                index_map.insert(key, table);
             }
             DicomValue::PixelSequence {
                 offset_table: _,
@@ -77,7 +90,7 @@ impl DicomDump<'_, '_> {
                     | VR::UC // TODO
                     | VR::UN // TODO
                     | VR::UT => {
-                        index_map.insert(key, Stringlike(value).into());
+                        index_map.insert(key, Stringlike(value, *span).into());
                     }
                     VR::DA
                     | VR::IS
@@ -88,10 +101,10 @@ impl DicomDump<'_, '_> {
                     | VR::SL
                     | VR::UL
                     | VR::UV => {
-                        index_map.insert(key, Integerlike(value).into());
+                        index_map.insert(key, Integerlike(value, *span).into());
                     }
                     VR::TM | VR::DS | VR::FD | VR::FL | VR::OD | VR::OF => {
-                        index_map.insert(key, Decimallike(value).into());
+                        index_map.insert(key, Decimallike(value, *span).into());
                     }
                 }
             }

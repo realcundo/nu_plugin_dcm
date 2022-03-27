@@ -1,9 +1,6 @@
-use std::str::FromStr;
-
-use bigdecimal::BigDecimal;
 use dicom::core::PrimitiveValue;
 use itertools::Itertools;
-use nu_protocol::{Primitive, UntaggedValue};
+use nu_protocol::Span;
 
 #[allow(clippy::ptr_arg)]
 pub fn trim_string(s: &String) -> &str {
@@ -11,33 +8,39 @@ pub fn trim_string(s: &String) -> &str {
     s.trim_matches(TRIM_CHARS)
 }
 
-pub struct Stringlike<'a>(pub &'a PrimitiveValue);
-pub struct Integerlike<'a>(pub &'a PrimitiveValue);
-pub struct Decimallike<'a>(pub &'a PrimitiveValue);
+pub struct Stringlike<'a>(pub &'a PrimitiveValue, pub Span);
+pub struct Integerlike<'a>(pub &'a PrimitiveValue, pub Span);
+pub struct Decimallike<'a>(pub &'a PrimitiveValue, pub Span);
 
 impl From<Stringlike<'_>> for nu_protocol::Value {
     fn from(v: Stringlike) -> Self {
         // TODO use rows/table like below?
-        let s = v.0.to_multi_str().iter().map(trim_string).join("\n");
-        UntaggedValue::Primitive(Primitive::String(s)).into()
+        let val = v.0.to_multi_str().iter().map(trim_string).join("\n");
+        nu_protocol::Value::String { val, span: v.1 }
     }
 }
 
 impl From<Integerlike<'_>> for nu_protocol::Value {
     fn from(v: Integerlike) -> Self {
-        let i = v.0.to_multi_int::<i128>().unwrap();
+        // TODO is i64 enough?
+        let i =
+            v.0.to_multi_int::<i64>()
+                .expect("Failed to parse Integerlike to i64");
 
         match i.len() {
-            0 => UntaggedValue::Primitive(Primitive::Nothing).into(),
-            1 => UntaggedValue::Primitive(Primitive::BigInt(i[0].into())).into(),
+            0 => nu_protocol::Value::Nothing { span: v.1 },
+            1 => nu_protocol::Value::Int {
+                val: i[0],
+                span: v.1,
+            },
             _ => {
                 let t: Vec<nu_protocol::Value> = i
                     .into_iter()
-                    .map(|i| UntaggedValue::Primitive(Primitive::BigInt(i.into())).into())
+                    .map(|i| nu_protocol::Value::Int { val: i, span: v.1 })
                     .collect();
 
-                // TODO use Row instead of full table?
-                nu_protocol::UntaggedValue::Table(t).into()
+                // TODO use Record instead of List?
+                nu_protocol::Value::List { vals: t, span: v.1 }
             }
         }
     }
@@ -45,26 +48,29 @@ impl From<Integerlike<'_>> for nu_protocol::Value {
 
 impl From<Decimallike<'_>> for nu_protocol::Value {
     fn from(v: Decimallike) -> Self {
-        let s = v.0.to_multi_str();
-        let s = s.iter().map(trim_string).collect::<Vec<_>>();
+        // empty shortcut (not handled by to_multi_float64())
+        if let PrimitiveValue::Empty = v.0 {
+            return nu_protocol::Value::Nothing { span: v.1 };
+        };
 
-        match s.len() {
-            0 => UntaggedValue::Primitive(Primitive::Nothing).into(),
-            1 => UntaggedValue::Primitive(Primitive::Decimal(BigDecimal::from_str(s[0]).unwrap()))
-                .into(),
+        let i =
+            v.0.to_multi_float64()
+                .expect("Failed to parse Decimallike to f64");
+
+        match i.len() {
+            0 => nu_protocol::Value::Nothing { span: v.1 },
+            1 => nu_protocol::Value::Float {
+                val: i[0],
+                span: v.1,
+            },
             _ => {
-                let t: Vec<nu_protocol::Value> = s
+                let t: Vec<nu_protocol::Value> = i
                     .into_iter()
-                    .map(|s| {
-                        UntaggedValue::Primitive(Primitive::Decimal(
-                            BigDecimal::from_str(s).unwrap(),
-                        ))
-                        .into()
-                    })
+                    .map(|i| nu_protocol::Value::Float { val: i, span: v.1 })
                     .collect();
 
-                // TODO use Row instead of full table?
-                nu_protocol::UntaggedValue::Table(t).into()
+                // TODO use Record instead of List?
+                nu_protocol::Value::List { vals: t, span: v.1 }
             }
         }
     }

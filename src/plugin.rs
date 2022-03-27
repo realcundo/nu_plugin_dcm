@@ -3,29 +3,22 @@ use std::io::Cursor;
 use crate::meta::make_row_from_dicom_metadata;
 use crate::reader::{read_dcm_file, read_dcm_stream};
 
+use crate::dcm;
 use dicom::object::DefaultDicomObject;
 use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
-use nu_errors::ShellError;
-use nu_plugin::Plugin;
-use nu_protocol::{
-    CallInfo, ColumnPath, Primitive, ReturnSuccess, ReturnValue, Signature, SyntaxShape,
-    UntaggedValue, Value,
-};
-use nu_value_ext::get_data_by_column_path;
-
-use crate::dcm;
+use nu_plugin::{LabeledError, Plugin};
+use nu_protocol::ast::CellPath;
+use nu_protocol::{Category, Signature, Span, Spanned, SyntaxShape, Value};
 
 #[derive(Default)]
 pub struct DcmPlugin {
     pub dcm_dictionary: StandardDataDictionary,
-    pub source_column: Option<ColumnPath>,
-    pub silent_errors: bool,
 }
 
 impl Plugin for DcmPlugin {
-    fn config(&mut self) -> Result<Signature, ShellError> {
-        Ok(Signature::build("dcm")
+    fn signature(&self) -> Vec<Signature> {
+        vec![Signature::build("dcm")
             .desc("Parse Dicom object from file or binary data. Invalid Dicom objects are reported as errors and excluded from the output.")
             .switch(
                 "silent-errors",
@@ -34,135 +27,126 @@ impl Plugin for DcmPlugin {
             )
             .optional(
                 "column",
-                SyntaxShape::ColumnPath,
+                SyntaxShape::CellPath,
                 "Optional column name to use as Dicom source",
             )
-            .filter())
+            .category(Category::Filters)
+        ]
     }
 
-    fn begin_filter(&mut self, call_info: CallInfo) -> Result<Vec<ReturnValue>, ShellError> {
-        // nu makes sure the num of args and type is correct
-        if let Some(column) = call_info.args.nth(0) {
-            if let UntaggedValue::Primitive(Primitive::ColumnPath(column)) = &column.value {
-                self.source_column = Some(column.clone());
-            }
-        }
+    fn run(
+        &mut self,
+        _name: &str,
+        call: &nu_plugin::EvaluatedCall,
+        input: &Value,
+    ) -> Result<Value, LabeledError> {
+        // parse args, nu makes sure the num of args and type is correct
+        let column = call.nth(0);
 
-        if let Some(index_map) = call_info.args.named {
-            self.silent_errors =
-                index_map.contains_key("silent-errors") || index_map.contains_key("s");
-        }
+        let source_column = if let Some(Value::CellPath { val, span: _ }) = &column {
+            Some(val.clone())
+        } else {
+            None
+        };
 
-        Ok(vec![])
-    }
+        // run
+        let result = self.run_filter(input, source_column);
 
-    fn filter(&mut self, value: Value) -> Result<Vec<ReturnValue>, ShellError> {
-        let result = self.run_filter(&value);
-
-        match (self.silent_errors, &result) {
+        // TODO are silent errors still useful? Figure out how to deal with errors here vs errors in the CellPath list
+        let silent_errors = call.has_flag("silent-errors");
+        match (silent_errors, &result) {
+            // ok or errors should not be silenced, return as is
             (_, Ok(_)) | (false, Err(_)) => result,
+
             // found an error and we should silence it
-            (true, Err(_shell_error)) => {
-                let value = Value::new(UntaggedValue::nothing(), value.tag);
-                Ok(vec![Ok(ReturnSuccess::Value(value))])
-            }
+            (true, Err(_error)) => Ok(Value::Nothing { span: call.head }),
         }
     }
 }
 
 impl DcmPlugin {
-    fn run_filter(&mut self, value: &Value) -> Result<Vec<ReturnValue>, ShellError> {
-        let tag = value.tag();
-
+    pub fn run_filter(
+        &mut self,
+        value: &Value,
+        source_column: Option<CellPath>,
+    ) -> Result<Value, LabeledError> {
         // use source column if known
-        if let Some(source_column) = &self.source_column {
-            // FIXME error handling
-            let value = get_data_by_column_path(value, source_column, |_v, _p, e| e)?;
+        if let Some(source_column) = source_column {
+            // TODO is it possible without cloning?
+            let value = value.clone().follow_cell_path(&source_column.members)?;
 
-            match &value.value {
-                UntaggedValue::Primitive(_) => self.process_value(tag, &value),
-                UntaggedValue::Table(ref t) => {
-                    let mut result = Vec::with_capacity(t.len());
-
-                    for e in t {
-                        result.extend(self.process_value(tag.clone(), e)?);
-                    }
-
-                    Ok(result)
-                }
-                UntaggedValue::Row(_) => todo!("get_data_by_column_path row branch"),
-                UntaggedValue::Block(_) => todo!("get_data_by_column_path block branch"),
-                UntaggedValue::Error(e) => Err(e.clone()),
-            }
+            // AFAIK a list, process_value will handle it
+            self.process_value(&value)
         } else {
             // expect a primitive value if column is not known
-            self.process_value(tag, value)
+            self.process_value(value)
         }
     }
 
-    fn process_value(
-        &self,
-        tag: nu_source::Tag,
-        value: &Value,
-    ) -> Result<Vec<ReturnValue>, ShellError> {
-        match &value.value {
-            UntaggedValue::Primitive(Primitive::FilePath(path)) => {
-                let obj = read_dcm_file(path).map_err(|e| {
-                    ShellError::labeled_error(
-                        format!("{} [file {}]", e, path.to_string_lossy()),
-                        "'dcm' expects a valid Dicom file",
-                        tag.span,
-                    )
+    fn process_value(&self, value: &Value) -> Result<Value, LabeledError> {
+        match &value {
+            Value::String { val, span } => {
+                let obj = read_dcm_file(val).map_err(|e| LabeledError {
+                    label: "'dcm' expects valid Dicom binary data".to_owned(),
+                    msg: format!("{} [file {}]", e, val),
+                    span: Some(*span),
                 })?;
 
-                self.process_dicom_object(tag, obj)
+                self.process_dicom_object(span, obj)
             }
-            UntaggedValue::Primitive(Primitive::String(path_as_string)) => {
-                let obj = read_dcm_file(path_as_string).map_err(|e| {
-                    ShellError::labeled_error(
-                        format!("{} [file {}]", e, path_as_string),
-                        "'dcm' expects valid Dicom binary data",
-                        tag.span,
-                    )
+            Value::Binary { val, span } => {
+                let cursor = Cursor::new(val);
+                let obj = read_dcm_stream(cursor).map_err(|e| LabeledError {
+                    label: "'dcm' expects valid Dicom binary data".to_owned(),
+                    msg: e.to_string(),
+                    span: Some(*span),
                 })?;
 
-                self.process_dicom_object(tag, obj)
+                self.process_dicom_object(span, obj)
             }
-            UntaggedValue::Primitive(Primitive::Binary(data)) => {
-                let cursor = Cursor::new(data);
-                let obj = read_dcm_stream(cursor).map_err(|e| {
-                    ShellError::labeled_error(
-                        e.to_string(),
-                        "'dcm' expects valid Dicom binary data",
-                        tag.span,
-                    )
-                })?;
+            Value::List { vals, span } => {
+                // use either a dicom result or an error for each input element
+                // TODO respect silent-errors flag?
+                let result: Vec<Value> = vals
+                    .iter()
+                    .map(|v| {
+                        self.process_value(v)
+                            .unwrap_or_else(|e| Value::Error { error: e.into() })
+                    })
+                    .collect();
 
-                self.process_dicom_object(tag, obj)
+                Ok(Value::List {
+                    vals: result,
+                    span: *span,
+                })
             }
-            _ => Err(ShellError::labeled_error(
-                "Unrecognized type in stream",
-                "'dcm' expects a filepath, binary, string or a column path",
-                tag.span,
-            )),
+            _ => Err(LabeledError {
+                label: "Unrecognized type in stream".to_owned(),
+                msg: "'dcm' expects a string (filepath), binary, or column path".to_owned(),
+                span: value.span().ok(),
+            }),
         }
     }
 
     fn process_dicom_object(
         &self,
-        tag: nu_source::Tag,
+        span: &Span,
         obj: DefaultDicomObject,
-    ) -> Result<Vec<ReturnValue>, ShellError> {
+    ) -> Result<Value, LabeledError> {
         let dcm_dumper = dcm::DicomDump {
             dcm_dictionary: &self.dcm_dictionary,
         };
 
         // dump both metadata and data into a single table
         let mut index_map = IndexMap::with_capacity(1000);
-        make_row_from_dicom_metadata(&mut index_map, obj.meta());
-        dcm_dumper.make_row_from_dicom_object(&mut index_map, &obj);
+        make_row_from_dicom_metadata(span, &mut index_map, obj.meta());
+        dcm_dumper.make_row_from_dicom_object(span, &mut index_map, &obj);
 
-        let value = Value::new(UntaggedValue::Row(index_map.into()), tag);
-        Ok(vec![Ok(ReturnSuccess::Value(value))])
+        let index_map = Spanned {
+            item: index_map,
+            span: *span,
+        };
+
+        Ok(Value::from(index_map))
     }
 }
