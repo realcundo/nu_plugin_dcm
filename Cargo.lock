@@ -70,9 +70,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee1e0e2125faccb856bf10b0a9dfa89c4c718d05ef85580dfefbdf1c422ef801"
+checksum = "cdead85bdec19c194affaeeb670c0e41fe23de31459efd1c174d049269cf02cc"
 
 [[package]]
 name = "byteorder"
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "nu_plugin_dcm"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "dicom",
  "indexmap",
