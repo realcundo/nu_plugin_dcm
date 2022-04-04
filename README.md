@@ -18,12 +18,8 @@ I'm still trying to figure out what is the most useful way of using this plugin.
 ## Error handling
 
 `dcm` plugin works in two modes:
-- default, when errors are not skipped: each input is processed and errors are reported back to
-  `nu` and they are not included in the output. This makes output potentially shorter than the
-  input.
-- skip errors using `-s`/`--silent-errors` flag: errors are output as empty values. This means that
-  the output has exactly the same number of rows as the input. This mode is suitable for
-  merging tables (e.g. table of files and table of parsed dicom objects).
+- default, when errors are reported as error rows,
+- in custom columns when `--error` option is used. This will report all errors in the specified column. Empty column value means no error.
 
 ## Known Limitations
 
@@ -54,35 +50,32 @@ ls *.dcm | dcm name | to json --indent 2
 ls *.dcm | dcm name | to yaml
 ```
 
+
+### Find all files in the current directory and subdirectories, parse them and group by Modality
+
+```sh
+ls **/* | where type == file | dcm name -e error | where error == "" | group-by Modality
+```
+
 ### For each file in the current directory, show the filename, file size, SOP Instance UID, Modality and Pixel Spacing and sort by SOP Instance UID
 PixelSpacing is an array with 2 values.
 
-To flatten the array use `.0` and `.1` indices. `dcm` is
-run using `--silent-errors`/`-s` to make sure that both `$files` and `dcm` have the same number of
-rows. Without the flag the output of `dcm` could be shorted if Dicom object couldn't be parsed
-resulting in incorrect merge.
+To flatten the array use `.0` and `.1` indices.
 
 ```sh
 let files = (ls | where type == file)
 
-echo $files | select name size | merge { echo $files | dcm -s name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+echo $files | select name size | merge { echo $files | dcm name -e error | default "" SOPInstanceUID | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 error} | sort-by size
 ```
+Note that when a file cannot be parsed, it won't have `SOPInstanceUID` column. The `default` commands makes sure that `select` can find the column.
 
-`dcm name` is a shortcut for `get name | dcm`. The following commands are equivalent:
-```sh
-echo $files | select name size | merge { echo $files | dcm -s name | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+You can also use `each` and `par-each` like in the following example.
 
-echo $files | select name size | merge { echo $files.name | dcm -s | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
 
-echo $files | select name size | merge { echo $files | get name | dcm -s | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 } | sort-by size
+### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a Dicom parsing error, if any
+Use `par-each` to process files in parallel:
 ```
-
-### Find all files in the current directory and subdirectories, parse them and group by Modality
-
-Note that not all Dicom files have `(0008,0060)` Modality tag available. This will default missing
-Modality tags to `???`.
-```sh
-ls **/* | where type == file | dcm name | default Modality '???' | group-by Modality  
+ls **/* | par-each { |it| { name: $it.name, size: $it.size, sha256: (open $it.name | hash sha256), dcm: ($it.name | dcm -e error) } } | select name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error | sort-by name
 ```
 
 

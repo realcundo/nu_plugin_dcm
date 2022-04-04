@@ -21,7 +21,7 @@ pub fn filepath(input: impl Into<PathBuf>) -> Value {
 #[test]
 fn no_input_without_errors() {
     let mut p = DcmPlugin::default();
-    let actual = p.run_filter(&Value::test_nothing(), None);
+    let actual = p.run_filter(&Value::test_nothing(), None, None);
 
     let expected = Err(LabeledError {
         label: "Unrecognized type in stream".to_owned(),
@@ -37,7 +37,7 @@ fn read_explicit_vr_big_endian_preamble() {
     let filename = get_asset_filename("ExplicitVRBigEndian-Preamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let actual = p.run_filter(&filepath(filename), None);
+    let actual = p.run_filter(&filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         vec![
@@ -62,7 +62,7 @@ fn read_explicit_vr_little_endian_preamble() {
     let filename = get_asset_filename("ExplicitVRLittleEndian-Preamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let actual = p.run_filter(&filepath(filename), None);
+    let actual = p.run_filter(&filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         vec![
@@ -87,7 +87,7 @@ fn read_implicit_vr_little_endian_preamble() {
     let filename = get_asset_filename("ImplicitVRLittleEndian-Preamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let actual = p.run_filter(&filepath(filename), None);
+    let actual = p.run_filter(&filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         vec![
@@ -113,7 +113,7 @@ fn read_explicit_vr_big_endian_no_preamble() {
     let filename = get_asset_filename("ExplicitVRBigEndian-NoPreamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let _actual = p.run_filter(&filepath(filename), None);
+    let _actual = p.run_filter(&filepath(filename), None, None);
 
     todo!()
 }
@@ -124,7 +124,7 @@ fn read_explicit_vr_little_endian_no_preamble() {
     let filename = get_asset_filename("ExplicitVRLittleEndian-NoPreamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let _actual = p.run_filter(&filepath(filename), None);
+    let _actual = p.run_filter(&filepath(filename), None, None);
 
     todo!()
 }
@@ -135,7 +135,7 @@ fn read_implicit_vr_little_endian_no_preamble() {
     let filename = get_asset_filename("ImplicitVRLittleEndian-NoPreamble.dcm");
 
     let mut p = DcmPlugin::default();
-    let _actual = p.run_filter(&filepath(filename), None);
+    let _actual = p.run_filter(&filepath(filename), None, None);
 
     todo!()
 }
