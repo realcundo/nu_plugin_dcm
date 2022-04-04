@@ -7,7 +7,8 @@ A [nushell](https://www.nushell.sh/) plugin to parse [Dicom](https://en.wikipedi
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
 with all Dicom objects. One notable limitation is that all Dicom objects are expected to have a preamble.
 
-I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out, send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
+I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out,
+send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
 `dcm` plugin reads its input from single values or from specific columns:
@@ -54,7 +55,11 @@ ls *.dcm | dcm name | to yaml
 ### Find all files in the current directory and subdirectories, parse them and group by Modality
 
 ```sh
-ls **/* | where type == file | dcm name -e error | where error == "" | group-by Modality
+ls **/* |
+  where type == file |
+  dcm name -e error |
+  where error == "" |
+  group-by Modality
 ```
 
 ### For each file in the current directory, show the filename, file size, SOP Instance UID, Modality and Pixel Spacing and sort by SOP Instance UID
@@ -65,7 +70,15 @@ To flatten the array use `.0` and `.1` indices.
 ```sh
 let files = (ls | where type == file)
 
-echo $files | select name size | merge { echo $files | dcm name -e error | default "" SOPInstanceUID | select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 error} | sort-by size
+echo $files |
+  select name size |
+  merge {
+    echo $files |
+    dcm name -e error |
+    default "" SOPInstanceUID |
+    select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 error
+  } |
+  sort-by size
 ```
 Note that when a file cannot be parsed, it won't have `SOPInstanceUID` column. The `default` commands makes sure that `select` can find the column.
 
@@ -74,8 +87,16 @@ You can also use `each` and `par-each` like in the following example.
 
 ### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a Dicom parsing error, if any
 Use `par-each` to process files in parallel:
-```
-ls **/* | par-each { |it| { name: $it.name, size: $it.size, sha256: (open $it.name | hash sha256), dcm: ($it.name | dcm -e error) } } | select name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error | sort-by name
+```sh
+ls **/* |
+  par-each { |it| {
+    name: $it.name,
+    size: $it.size,
+    sha256: (open $it.name | hash sha256),
+    dcm: ($it.name | dcm -e error)
+   } } |
+   select name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error |
+   sort-by name
 ```
 
 
