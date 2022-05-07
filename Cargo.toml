@@ -14,12 +14,12 @@ include = ["src/**/*", "LICENSE", "README.md"]
 
 [dependencies]
 snafu = "0.7" # ideally should match dicom
-dicom = "0.5.0-rc.2"
+dicom = "0.5"
 indexmap = "1.8" # to match the version from nu
 itertools = "0.10"
 
-nu-plugin = "0.60"
-nu-protocol = { version = "0.60", features = ["plugin"]}
+nu-plugin = "0.62"
+nu-protocol = { version = "0.62", features = ["plugin"]}
 
 [profile.release]
 lto = true

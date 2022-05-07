@@ -19,7 +19,7 @@ pub struct DcmPlugin {
 impl Plugin for DcmPlugin {
     fn signature(&self) -> Vec<Signature> {
         vec![Signature::build("dcm")
-            .desc("Parse Dicom object from file or binary data. Invalid Dicom objects are reported as errors and excluded from the output.")
+            .usage("Parse Dicom object from file or binary data. Invalid Dicom objects are reported as errors and excluded from the output.")
             .named(
                 "error",
                 SyntaxShape::String,
