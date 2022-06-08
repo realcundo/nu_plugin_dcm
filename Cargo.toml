@@ -18,8 +18,8 @@ dicom = "0.5"
 indexmap = "1.8" # to match the version from nu
 itertools = "0.10"
 
-nu-plugin = "0.62"
-nu-protocol = { version = "0.62", features = ["plugin"]}
+nu-plugin = "0.63"
+nu-protocol = { version = "0.63", features = ["plugin"]}
 
 [profile.release]
 lto = true
