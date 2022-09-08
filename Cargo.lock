@@ -1008,7 +1008,7 @@ dependencies = [
 
 [[package]]
 name = "nu_plugin_dcm"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "dicom",
  "indexmap",
