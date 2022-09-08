@@ -70,7 +70,9 @@ impl DcmPlugin {
         // use source column if known
         if let Some(source_column) = source_column {
             // TODO is it possible without cloning?
-            let value = value.clone().follow_cell_path(&source_column.members)?;
+            let value = value
+                .clone()
+                .follow_cell_path(&source_column.members, false)?;
 
             // AFAIK a list, process_value will handle it
             self.process_value(&value, &error_column)
