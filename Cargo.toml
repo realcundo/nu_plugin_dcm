@@ -13,10 +13,10 @@ include = ["src/**/*", "LICENSE", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-snafu = "0.7" # ideally should match dicom
-dicom = "0.5"
-indexmap = "1.8" # to match the version from nu
-itertools = "0.10"
+snafu = "0.8" # ideally should match dicom
+dicom = { version = "0.8.1", default-features = false }
+indexmap = "2.9" # to match the version from nu
+itertools = "0.14"
 
 nu-plugin = "0.105.1"
 nu-protocol = { version = "0.105.1", features = ["plugin"]}
