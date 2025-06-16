@@ -1,5 +1,5 @@
 use dicom::{
-    core::{dictionary::DictionaryEntryRef, DataDictionary, DicomValue, VR},
+    core::{DataDictionary, DicomValue, VR},
     object::{mem::InMemElement, InMemDicomObject},
 };
 use indexmap::IndexMap;
@@ -8,7 +8,7 @@ use nu_protocol::{Record, Span, Value};
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
 pub struct DicomDump<'a, 'b> {
-    pub dcm_dictionary: &'a dyn DataDictionary<Entry = DictionaryEntryRef<'b>>,
+    pub dcm_dictionary: &'a dyn DataDictionary<Entry = dicom::core::dictionary::DataDictionaryEntryRef<'b>>,
 }
 
 impl DicomDump<'_, '_> {
@@ -38,8 +38,8 @@ impl DicomDump<'_, '_> {
             .unwrap_or_else(|| format!("{:04X},{:04X}", header.tag.group(), header.tag.element()));
 
         match elem.value() {
-            DicomValue::Sequence { items, size: _ } => {
-                let rows: Vec<Value> = items
+            DicomValue::Sequence(seq) => {
+                let rows: Vec<Value> = seq.items()
                     .iter()
                     .map(|obj| {
                         let mut nested_index_map = IndexMap::with_capacity(1000);
@@ -58,10 +58,7 @@ impl DicomDump<'_, '_> {
 
                 index_map.insert(key, table);
             }
-            DicomValue::PixelSequence {
-                offset_table: _,
-                fragments: _,
-            } => {
+            DicomValue::PixelSequence(_) => {
                 // no-op, pixel data are not read
             }
             DicomValue::Primitive(value) => {

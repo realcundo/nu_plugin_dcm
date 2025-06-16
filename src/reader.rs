@@ -17,15 +17,15 @@ pub enum Error {
     Preamble,
 
     #[snafu(display("Could not parse Dicom object: {}", source))]
-    Dcm { source: dicom_object::Error },
+    Dcm { source: dicom_object::ReadError },
 
     #[snafu(display("Could not parse Dicom object (no preamble?): {}", source))]
-    DcmNoPreamble { source: dicom_object::Error },
+    DcmNoPreamble { source: dicom_object::ReadError },
 }
 
 pub fn read_dcm_file<P: AsRef<Path>>(path: P) -> Result<DefaultDicomObject, Error> {
     let path = path.as_ref();
-    let input = BufReader::new(File::open(path).with_context(|_| IoSnafu)?);
+    let input = BufReader::new(File::open(path).context(IoSnafu)?);
     read_dcm_stream(input)
 }
 
@@ -38,13 +38,13 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
     match input.read_exact(&mut buf) {
         Ok(_) => {
             // check if DICM
-            if buf[128..132] == [b'D', b'I', b'C', b'M'] {
-                // need to rewind back 4 to get to the beginning of DCIM again
+            if buf[128..132] == *b"DICM" {
+                // need to rewind back 4 to get to the beginning of DICM again
                 input
                     .seek(SeekFrom::Current(-4))
-                    .with_context(|_| IoSnafu)?;
+                    .context(IoSnafu)?;
 
-                return read_dcm_stream_without_pixel_data(input).with_context(|_| DcmSnafu);
+                return read_dcm_stream_without_pixel_data(input).context(DcmSnafu);
             }
         }
         Err(e) => {
@@ -56,15 +56,15 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
     }
 
     // Rewind to the start and try to read without the preamble
-    input.seek(SeekFrom::Start(0)).with_context(|_| IoSnafu)?;
+    input.seek(SeekFrom::Start(0)).context(IoSnafu)?;
 
-    // TODO this will always fail -- dicom.rs needs DCIM magic to read meta
-    read_dcm_stream_without_pixel_data(input).with_context(|_| DcmNoPreambleSnafu)
+    // TODO this will always fail -- dicom.rs needs DICM magic to read meta
+    read_dcm_stream_without_pixel_data(input).context(DcmNoPreambleSnafu)
 }
 
 fn read_dcm_stream_without_pixel_data<F: Read>(
     input: F,
-) -> Result<DefaultDicomObject, dicom_object::Error> {
+) -> Result<DefaultDicomObject, dicom_object::ReadError> {
     dicom_object::OpenFileOptions::new()
         .read_until(dicom::dictionary_std::tags::PIXEL_DATA)
         .read_preamble(dicom_object::file::ReadPreamble::Never)
