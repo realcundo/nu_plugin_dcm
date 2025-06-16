@@ -3,7 +3,7 @@ use dicom::{
     object::{mem::InMemElement, InMemDicomObject},
 };
 use indexmap::IndexMap;
-use nu_protocol::{Span, Spanned, Value};
+use nu_protocol::{Record, Span, Value};
 
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
@@ -45,21 +45,16 @@ impl DicomDump<'_, '_> {
                         let mut nested_index_map = IndexMap::with_capacity(1000);
                         self.make_row_from_dicom_object(span, &mut nested_index_map, obj);
 
-                        let nested_index_map = Spanned {
-                            item: nested_index_map,
-                            span: *span,
-                        };
-
-                        Value::from(nested_index_map)
+                        Value::record(Record::from_iter(nested_index_map), *span)
                     })
                     .collect();
 
                 // TODO nu doesn't require rows to have identical columns but it'd be more predictable to
                 // normalise them and fill in the gaps. For now assume DCM items are identical.
-                let table = Value::List {
-                    vals: rows,
-                    span: *span,
-                };
+                let table = Value::list(
+                    rows,
+                    *span,
+                );
 
                 index_map.insert(key, table);
             }
