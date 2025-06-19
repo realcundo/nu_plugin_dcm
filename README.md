@@ -1,6 +1,6 @@
 # nu_plugin_dcm
 
-*Note that this plugin works with nu>=0.60. If you want to use nu<=0.44, use version 0.1.3 of this plugin.*
+*Note that this plugin works with nu 0.105. If you want to use nu 0.60, use version 0.1.8 of this plugin.*
 
 A [nushell](https://www.nushell.sh/) plugin to parse [Dicom](https://en.wikipedia.org/wiki/DICOM) objects.
 
@@ -103,11 +103,19 @@ ls **/* |
 ## Installation
 
 Build and install using [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
+
 ```sh
 cargo install nu_plugin_dcm
 ```
+
 and then register in nu via
-```sh
-register --encoding=json <PATH-TO-nu_plugin_dcm>/nu_plugin_dcm
+
+```nu
+plugin add <PATH-TO-nu_plugin_dcm>/nu_plugin_dcm
 ```
-Note that you **must** use `json` encoding. `capnp` is not supported yet.
+
+To start using it right away, you can [import it](https://www.nushell.sh/book/plugins.html#importing-plugins).
+
+```nu
+plugin use nu_plugin_dcm
+```
