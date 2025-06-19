@@ -62,23 +62,18 @@ ls **/* |
   group-by Modality
 ```
 
-### For each file in the current directory, show the filename, file size, SOP Instance UID, Modality and Pixel Spacing and sort by SOP Instance UID
-PixelSpacing is an array with 2 values.
-
-To flatten the array use `.0` and `.1` indices.
-
+### For each file in the current directory, show the filename, file size, SOP Instance UID and Modality, and sort by SOP Instance UID
 ```sh
 let files = (ls | where type == file)
 
-echo $files |
-  select name size |
-  merge {
-    echo $files |
-    dcm name -e error |
-    default "" SOPInstanceUID |
-    select SOPInstanceUID Modality PixelSpacing.0 PixelSpacing.1 error
-  } |
-  sort-by size
+$files |
+select name size |
+merge ($files |
+  dcm name -e error |
+  default "" SOPInstanceUID |
+  select SOPInstanceUID Modality error
+) |
+sort-by size
 ```
 Note that when a file cannot be parsed, it won't have `SOPInstanceUID` column. The `default` commands makes sure that `select` can find the column.
 
