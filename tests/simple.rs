@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 
 use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
@@ -20,10 +21,13 @@ pub fn filepath(input: impl Into<PathBuf>) -> Value {
 
 #[test]
 fn no_input_without_errors() {
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
+
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, &Value::test_nothing(), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &Value::test_nothing(), None, None);
 
     let expected = Err(LabeledError::new("Unrecognized type in stream").with_label(
         "'dcm' expects a string (filepath), binary, or column path",
@@ -36,11 +40,13 @@ fn no_input_without_errors() {
 #[test]
 fn read_explicit_vr_big_endian_preamble() {
     let filename = get_asset_filename("ExplicitVRBigEndian-Preamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         [
@@ -60,11 +66,13 @@ fn read_explicit_vr_big_endian_preamble() {
 #[test]
 fn read_explicit_vr_little_endian_preamble() {
     let filename = get_asset_filename("ExplicitVRLittleEndian-Preamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         [
@@ -84,10 +92,12 @@ fn read_explicit_vr_little_endian_preamble() {
 #[test]
 fn read_implicit_vr_little_endian_preamble() {
     let filename = get_asset_filename("ImplicitVRLittleEndian-Preamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     let expected = Ok(Value::test_record(
         [
@@ -108,10 +118,12 @@ fn read_implicit_vr_little_endian_preamble() {
 #[ignore]
 fn read_explicit_vr_big_endian_no_preamble() {
     let filename = get_asset_filename("ExplicitVRBigEndian-NoPreamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     todo!()
 }
@@ -120,10 +132,12 @@ fn read_explicit_vr_big_endian_no_preamble() {
 #[ignore]
 fn read_explicit_vr_little_endian_no_preamble() {
     let filename = get_asset_filename("ExplicitVRLittleEndian-NoPreamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     todo!()
 }
@@ -132,10 +146,12 @@ fn read_explicit_vr_little_endian_no_preamble() {
 #[ignore]
 fn read_implicit_vr_little_endian_no_preamble() {
     let filename = get_asset_filename("ImplicitVRLittleEndian-NoPreamble.dcm");
+    let current_dir = Ok(env::current_dir().unwrap());
+    let current_dir = current_dir.as_deref();
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
 
     todo!()
 }

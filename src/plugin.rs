@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
 
 use crate::meta::make_row_from_dicom_metadata;
 use crate::reader::{read_dcm_file, read_dcm_stream};
@@ -9,7 +10,9 @@ use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
 use nu_plugin::{EngineInterface, Plugin, SimplePluginCommand};
 use nu_protocol::ast::CellPath;
-use nu_protocol::{Category, LabeledError, Record, Signature, Span, SyntaxShape, Value};
+use nu_protocol::{
+    Category, LabeledError, Record, ShellError, Signature, Span, SyntaxShape, Value,
+};
 
 #[derive(Default)]
 pub struct DcmPlugin {
@@ -58,10 +61,12 @@ impl SimplePluginCommand for DcmPluginCommand {
     fn run(
         &self,
         plugin: &DcmPlugin,
-        _engine: &EngineInterface,
+        engine: &EngineInterface,
         call: &nu_plugin::EvaluatedCall,
         input: &Value,
     ) -> Result<Value, LabeledError> {
+        let current_dir = engine.get_current_dir().map(PathBuf::from);
+
         // parse args, nu makes sure the num of args and type is correct
         let source_column = call.nth(0);
         let source_column = if let Some(Value::CellPath { val, .. }) = source_column {
@@ -78,7 +83,13 @@ impl SimplePluginCommand for DcmPluginCommand {
         };
 
         // run
-        self.run_filter(plugin, input, source_column, error_column)
+        self.run_filter(
+            plugin,
+            current_dir.as_deref(),
+            input,
+            source_column,
+            error_column,
+        )
     }
 }
 
@@ -86,6 +97,7 @@ impl DcmPluginCommand {
     pub fn run_filter(
         &self,
         plugin: &DcmPlugin,
+        current_dir: Result<&Path, &ShellError>,
         value: &Value,
         source_column: Option<CellPath>,
         error_column: Option<String>,
@@ -97,20 +109,21 @@ impl DcmPluginCommand {
             let value = value.follow_cell_path(&source_column.members)?;
 
             // AFAIK a list, process_value will handle it
-            self.process_value(plugin, &value, &error_column)
+            self.process_value(plugin, current_dir, &value, &error_column)
         } else {
             // expect a primitive value if column is not known
-            self.process_value(plugin, value, &error_column)
+            self.process_value(plugin, current_dir, value, &error_column)
         }
     }
 
     fn process_value(
         &self,
         plugin: &DcmPlugin,
+        current_dir: Result<&Path, &ShellError>,
         value: &Value,
         error_column: &Option<String>,
     ) -> Result<Value, LabeledError> {
-        let result = self.process_value_with_normal_error(plugin, value, error_column);
+        let result = self.process_value_with_normal_error(plugin, current_dir, value, error_column);
 
         // TODO better value.span().unwrap()
         match (error_column, &result) {
@@ -130,6 +143,7 @@ impl DcmPluginCommand {
     fn process_value_with_normal_error(
         &self,
         plugin: &DcmPlugin,
+        current_dir: Result<&Path, &ShellError>,
         value: &Value,
         error_column: &Option<String>,
     ) -> Result<Value, LabeledError> {
@@ -137,9 +151,14 @@ impl DcmPluginCommand {
             Value::String {
                 val, internal_span, ..
             } => {
-                let obj = read_dcm_file(val).map_err(|e| {
-                    LabeledError::new("'dcm' expects valid DICOM binary data")
-                        .with_label(format!("{} [file {}]", e, val), *internal_span)
+                // make absolute if needed
+                let val = resolve_path(val, current_dir, value.span())?;
+
+                let obj = read_dcm_file(&val).map_err(|e| {
+                    LabeledError::new("'dcm' expects valid DICOM binary data").with_label(
+                        format!("{} [file {}]", e, val.to_string_lossy()),
+                        *internal_span,
+                    )
                 })?;
 
                 self.process_dicom_object(plugin, internal_span, obj, error_column)
@@ -185,7 +204,7 @@ impl DcmPluginCommand {
                 let result: Vec<Value> = vals
                     .iter()
                     .map(|v| {
-                        self.process_value(plugin, v, error_column)
+                        self.process_value(plugin, current_dir, v, error_column)
                             .unwrap_or_else(|e| Value::error(e.into(), *internal_span))
                     })
                     .collect();
@@ -235,4 +254,32 @@ fn get_record_string<'a>(record: &'a Record, field_name: &str) -> Option<&'a str
         return None;
     };
     Some(val.as_str())
+}
+
+fn resolve_path(
+    filename: &str,
+    current_dir: Result<&Path, &ShellError>,
+    span: Span,
+) -> Result<PathBuf, LabeledError> {
+    use std::path::Path;
+
+    let path = Path::new(filename);
+
+    // If path is already absolute, return it as-is
+    if path.is_absolute() {
+        return Ok(path.to_path_buf());
+    }
+
+    // Path is relative, need to resolve against current working directory
+    let current_dir = current_dir.map_err(|e| {
+        LabeledError::new("Failed to get current working directory").with_label(
+            format!(
+                "Cannot resolve relative path '{}'\n\nError: {}",
+                filename, e
+            ),
+            span,
+        )
+    })?;
+
+    Ok(PathBuf::from(current_dir).join(filename))
 }
