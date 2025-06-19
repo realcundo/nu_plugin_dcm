@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use nu_plugin::{EngineInterface, Plugin, SimplePluginCommand};
 use nu_protocol::ast::CellPath;
 use nu_protocol::{
-    Category, LabeledError, Record, ShellError, Signature, Span, SyntaxShape, Value,
+    Category, Example, LabeledError, Record, ShellError, Signature, Span, SyntaxShape, Type, Value,
 };
 
 #[derive(Default)]
@@ -44,7 +44,34 @@ impl SimplePluginCommand for DcmPluginCommand {
     }
 
     fn signature(&self) -> Signature {
+        // Some example DICOM fields
+        let dicom_record_fields = vec![
+            ("StudyInstanceUID".to_string(), Type::String),
+            ("StudyDate".to_string(), Type::String),
+            ("Modality".to_string(), Type::Float),
+            (
+                "PixelSpacing".to_string(),
+                Type::List(Box::new(Type::Float)),
+            ),
+            ("...".to_string(), Type::Any),
+        ];
+
+        let dicom_record_type = Type::Record(dicom_record_fields.into_boxed_slice());
+
         Signature::build(nu_plugin::PluginCommand::name(self))
+            .input_output_types(
+                vec![
+                    // String (filename) -> Record (DICOM data)
+                    (Type::String, dicom_record_type.clone()),
+                    // Binary (DICOM data) -> Record (DICOM data)
+                    (Type::Binary, dicom_record_type.clone()),
+                    // List of Strings (filenames) -> List of Records
+                    (Type::List(Box::new(Type::String)), Type::List(Box::new(dicom_record_type.clone()))),
+                    // List of Binary -> List of Records (e.g. [(open 1.dcm), (open 2.dcm)] | dcm)
+                    (Type::List(Box::new(Type::Binary)), Type::List(Box::new(dicom_record_type.clone()))),
+                    // List of Any (for file listings) -> List of Records (e.g. `ls *.dcm | dcm name`)
+                    (Type::List(Box::new(Type::Any)), Type::List(Box::new(dicom_record_type))),
+                ])
             .named(
                 "error",
                 SyntaxShape::String,
@@ -55,7 +82,43 @@ impl SimplePluginCommand for DcmPluginCommand {
                 SyntaxShape::CellPath,
                 "Optional column name to use as Dicom source",
             )
-            .category(Category::Filters)
+            .category(Category::Formats)  // More appropriate category
+            .search_terms(vec!["dicom".to_string(), "medical".to_string(), "parse".to_string()])
+            .description("Parse DICOM files and binary data")
+            .extra_description("Parse DICOM objects from files or binary data. Invalid DICOM objects are reported as errors and excluded from the output unless --error flag is used.")
+    }
+
+    fn examples(&self) -> Vec<Example> {
+        vec![
+            Example {
+                description: "Parse a DICOM file by passing binary data",
+                example: "open file.dcm | dcm",
+                result: Some(Value::test_record(Record::from_iter([
+                    ("PatientName".to_string(), Value::test_string("John Doe")),
+                    ("Modality".to_string(), Value::test_string("CT")),
+                    ("StudyDate".to_string(), Value::test_string("20231201")),
+                    (
+                        "ImageType".to_string(),
+                        Value::test_string("ORIGINAL\\PRIMARY"),
+                    ),
+                ]))),
+            },
+            Example {
+                description: "Parse DICOM files from a list",
+                example: "ls *.dcm | dcm name",
+                result: None,
+            },
+            Example {
+                description: "Parse a specific file by filename",
+                example: "\"file.dcm\" | dcm",
+                result: None,
+            },
+            Example {
+                description: "Parse with error handling",
+                example: "ls *.dcm | dcm name --error parse_error",
+                result: None,
+            },
+        ]
     }
 
     fn run(
@@ -155,7 +218,7 @@ impl DcmPluginCommand {
                 let val = resolve_path(val, current_dir, value.span())?;
 
                 let obj = read_dcm_file(&val).map_err(|e| {
-                    LabeledError::new("'dcm' expects valid DICOM binary data").with_label(
+                    LabeledError::new("`dcm` expects valid DICOM binary data").with_label(
                         format!("{} [file {}]", e, val.to_string_lossy()),
                         *internal_span,
                     )
@@ -171,8 +234,9 @@ impl DcmPluginCommand {
                     // Probably a file Record
                     (Some("file"), Some(name)) => {
                         Err(LabeledError::new("Cannot process file records directly")
+                            .with_help("Extract the filename first using: `dcm name`, `get name | dcm`, or `select name | dcm`")
                             .with_label(
-                                format!("Found file record: '{}'\n\nTo use it, extract the file name from it. Use one of:\n    dcm name\n    select name | dcm\n    get name | dcm", name),
+                                format!("Found file record with name: '{}'", name),
                                 *internal_span
                             ))
                     }
