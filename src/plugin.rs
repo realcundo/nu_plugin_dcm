@@ -144,6 +144,27 @@ impl DcmPluginCommand {
 
                 self.process_dicom_object(plugin, internal_span, obj, error_column)
             }
+            Value::Record { val, internal_span } => {
+                let record_type = get_record_string(val, "type");
+                let record_name = get_record_string(val, "name");
+
+                return match (record_type, record_name) {
+                    // Probably a file Record
+                    (Some("file"), Some(name)) => {
+                        Err(LabeledError::new("Cannot process file records directly")
+                            .with_label(
+                                format!("Found file record: '{}'\n\nTo use it, extract the file name from it. Use one of:\n    dcm name\n    select name | dcm\n    get name | dcm", name),
+                                *internal_span
+                            ))
+                    }
+                    // Output generic record error
+                    _ =>  Err(LabeledError::new("Cannot process records directly")
+                           .with_label(
+                               "Select file name or binary data from the record before passing it to dcm",
+                               *internal_span
+                           ))
+                };
+            }
             Value::Binary {
                 val, internal_span, ..
             } => {
@@ -206,4 +227,12 @@ impl DcmPluginCommand {
         // convert index map to a record
         Ok(Value::record(Record::from_iter(index_map), *span))
     }
+}
+
+fn get_record_string<'a>(record: &'a Record, field_name: &str) -> Option<&'a str> {
+    let value = record.get(field_name)?;
+    let Value::String { val, .. } = value else {
+        return None;
+    };
+    Some(val.as_str())
 }

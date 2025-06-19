@@ -31,10 +31,7 @@ impl From<Integerlike<'_>> for Value {
             0 => Value::nothing(v.1),
             1 => Value::int(i[0], v.1),
             _ => {
-                let t: Vec<Value> = i
-                    .into_iter()
-                    .map(|i| Value::int(i, v.1))
-                    .collect();
+                let t: Vec<Value> = i.into_iter().map(|i| Value::int(i, v.1)).collect();
 
                 // TODO use Record instead of List?
                 Value::list(t, v.1)
@@ -58,10 +55,7 @@ impl From<Decimallike<'_>> for Value {
             0 => Value::nothing(v.1),
             1 => Value::float(i[0], v.1),
             _ => {
-                let t: Vec<Value> = i
-                    .into_iter()
-                    .map(|i| Value::float(i, v.1))
-                    .collect();
+                let t: Vec<Value> = i.into_iter().map(|i| Value::float(i, v.1)).collect();
 
                 // TODO use Record instead of List?
                 Value::list(t, v.1)

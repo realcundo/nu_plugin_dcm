@@ -40,9 +40,7 @@ pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObjec
             // check if DICM
             if buf[128..132] == *b"DICM" {
                 // need to rewind back 4 to get to the beginning of DICM again
-                input
-                    .seek(SeekFrom::Current(-4))
-                    .context(IoSnafu)?;
+                input.seek(SeekFrom::Current(-4)).context(IoSnafu)?;
 
                 return read_dcm_stream_without_pixel_data(input).context(DcmSnafu);
             }

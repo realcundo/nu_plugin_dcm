@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use nu_protocol::{LabeledError, Record};
 use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
+use nu_protocol::{LabeledError, Record};
 
 use nu_protocol::{Span, Value};
 
@@ -25,9 +25,10 @@ fn no_input_without_errors() {
 
     let actual = cmd.run_filter(&p, &Value::test_nothing(), None, None);
 
-    let expected = Err(LabeledError::new("Unrecognized type in stream")
-        .with_label("'dcm' expects a string (filepath), binary, or column path", Span::test_data()),
-    );
+    let expected = Err(LabeledError::new("Unrecognized type in stream").with_label(
+        "'dcm' expects a string (filepath), binary, or column path",
+        Span::test_data(),
+    ));
 
     assert_eq!(actual, expected);
 }
@@ -47,9 +48,10 @@ fn read_explicit_vr_big_endian_preamble() {
             ("MediaStorageSOPClassUID", "1.2.840.10008.5.1.4.1.1.2"),
             ("MediaStorageSOPInstanceUID", "1.2.3"),
             ("PatientName", "ExplicitVRBigEndian-Preamble"),
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>()
+        .collect::<Record>(),
     ));
 
     assert_eq!(actual, expected);
@@ -73,7 +75,7 @@ fn read_explicit_vr_little_endian_preamble() {
         ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>()
+        .collect::<Record>(),
     ));
 
     assert_eq!(actual, expected);
@@ -93,9 +95,10 @@ fn read_implicit_vr_little_endian_preamble() {
             ("MediaStorageSOPClassUID", "1.2.840.10008.5.1.4.1.1.2"),
             ("MediaStorageSOPInstanceUID", "1.2.3"),
             ("PatientName", "ImplicitVRLittleEndian-Preamble"),
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>()
+        .collect::<Record>(),
     ));
 
     assert_eq!(actual, expected);

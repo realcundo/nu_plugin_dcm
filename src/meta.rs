@@ -13,10 +13,7 @@ pub fn make_row_from_dicom_metadata(
 
     index_map.insert(
         "TransferSyntax".to_string(),
-        Value::string(
-            trim_string(&meta.transfer_syntax).to_owned(),
-            *span,
-        ),
+        Value::string(trim_string(&meta.transfer_syntax).to_owned(), *span),
     );
 
     index_map.insert(

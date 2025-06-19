@@ -8,7 +8,8 @@ use nu_protocol::{Record, Span, Value};
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
 pub struct DicomDump<'a, 'b> {
-    pub dcm_dictionary: &'a dyn DataDictionary<Entry = dicom::core::dictionary::DataDictionaryEntryRef<'b>>,
+    pub dcm_dictionary:
+        &'a dyn DataDictionary<Entry = dicom::core::dictionary::DataDictionaryEntryRef<'b>>,
 }
 
 impl DicomDump<'_, '_> {
@@ -39,7 +40,8 @@ impl DicomDump<'_, '_> {
 
         match elem.value() {
             DicomValue::Sequence(seq) => {
-                let rows: Vec<Value> = seq.items()
+                let rows: Vec<Value> = seq
+                    .items()
                     .iter()
                     .map(|obj| {
                         let mut nested_index_map = IndexMap::with_capacity(1000);
@@ -51,10 +53,7 @@ impl DicomDump<'_, '_> {
 
                 // TODO nu doesn't require rows to have identical columns but it'd be more predictable to
                 // normalise them and fill in the gaps. For now assume DCM items are identical.
-                let table = Value::list(
-                    rows,
-                    *span,
-                );
+                let table = Value::list(rows, *span);
 
                 index_map.insert(key, table);
             }
