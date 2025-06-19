@@ -148,7 +148,7 @@ impl DcmPluginCommand {
                 let record_type = get_record_string(val, "type");
                 let record_name = get_record_string(val, "name");
 
-                return match (record_type, record_name) {
+                match (record_type, record_name) {
                     // Probably a file Record
                     (Some("file"), Some(name)) => {
                         Err(LabeledError::new("Cannot process file records directly")
@@ -163,7 +163,7 @@ impl DcmPluginCommand {
                                "Select file name or binary data from the record before passing it to dcm",
                                *internal_span
                            ))
-                };
+                }
             }
             Value::Binary {
                 val, internal_span, ..
