@@ -56,7 +56,13 @@ impl SimplePluginCommand for DcmPluginCommand {
             ("...".to_string(), Type::Any),
         ];
 
+        let file_record_fields = vec![
+            ("name".to_string(), Type::String),
+            ("type".to_string(), Type::String),
+        ];
+
         let dicom_record_type = Type::Record(dicom_record_fields.into_boxed_slice());
+        let file_record_type = Type::Record(file_record_fields.into_boxed_slice());
 
         Signature::build(nu_plugin::PluginCommand::name(self))
             .input_output_types(
@@ -65,12 +71,14 @@ impl SimplePluginCommand for DcmPluginCommand {
                     (Type::String, dicom_record_type.clone()),
                     // Binary (DICOM data) -> Record (DICOM data)
                     (Type::Binary, dicom_record_type.clone()),
+                    // Record (file data) -> Record (DICOM data)
+                    (file_record_type.clone(), dicom_record_type.clone()),
                     // List of Strings (filenames) -> List of Records
                     (Type::List(Box::new(Type::String)), Type::List(Box::new(dicom_record_type.clone()))),
                     // List of Binary -> List of Records (e.g. [(open 1.dcm), (open 2.dcm)] | dcm)
                     (Type::List(Box::new(Type::Binary)), Type::List(Box::new(dicom_record_type.clone()))),
-                    // List of Any (for file listings) -> List of Records (e.g. `ls *.dcm | dcm name`)
-                    (Type::List(Box::new(Type::Any)), Type::List(Box::new(dicom_record_type))),
+                    // List of file records) -> List of Records (e.g. `ls *.dcm | dcm name`)
+                    (Type::List(Box::new(file_record_type.clone())), Type::List(Box::new(dicom_record_type))),
                 ])
             .named(
                 "error",
