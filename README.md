@@ -51,7 +51,6 @@ ls *.dcm | dcm name | to json --indent 2
 ls *.dcm | dcm name | to yaml
 ```
 
-
 ### Find all files in the current directory and subdirectories, parse them and group by Modality
 
 ```sh
@@ -70,27 +69,26 @@ $files |
 select name size |
 merge ($files |
   dcm name -e error |
-  default "" SOPInstanceUID |
-  select SOPInstanceUID Modality error
+  select --ignore-errors SOPInstanceUID Modality error
 ) |
 sort-by size
 ```
-Note that when a file cannot be parsed, it won't have `SOPInstanceUID` column. The `default` commands makes sure that `select` can find the column.
-
-You can also use `each` and `par-each` like in the following example.
+Note that when a file cannot be parsed, it won't have `SOPInstanceUID`, etc. columns. Without `--ignore-errors` `select`
+would fail since selected columns are missing. Another option would be using `default "" SOPInstanceUID` to add values
+for missing columns.)
 
 
 ### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a Dicom parsing error, if any
 Use `par-each` to process files in parallel:
 ```sh
-ls **/* |
+ls **/* | where type == file |
   par-each { |it| {
     name: $it.name,
     size: $it.size,
     sha256: (open $it.name | hash sha256),
     dcm: ($it.name | dcm -e error)
    } } |
-   select name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error |
+   select --ignore-errors name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error |
    sort-by name
 ```
 
@@ -103,13 +101,13 @@ Build and install using [cargo](https://doc.rust-lang.org/cargo/getting-started/
 cargo install nu_plugin_dcm
 ```
 
-and then register in nu via
+and then register in nu, e.g.
 
 ```nu
-plugin add <PATH-TO-nu_plugin_dcm>/nu_plugin_dcm
+plugin add ~/.cargo/bin/nu_plugin_dcm
 ```
 
-To start using it right away, you can [import it](https://www.nushell.sh/book/plugins.html#importing-plugins).
+To start using it without restarting nu, you can [import it](https://www.nushell.sh/book/plugins.html#importing-plugins):
 
 ```nu
 plugin use nu_plugin_dcm
