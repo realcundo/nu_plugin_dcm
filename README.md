@@ -11,16 +11,19 @@ I'm still trying to figure out what is the most useful way of using this plugin.
 send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
-`dcm` plugin reads its input from single values or from specific columns:
+`dcm` plugin reads its input from single values, from specific columns, or from list of values:
 - `dcm`: expects a string/filename or binary DICOM data
 - `dcm $column_name`: reads a string/filename or binary DICOM data from `$column`. This is
   equivalent to `get $column | dcm`.
+- `ls *.dcm | select name | dcm`: reads all files foun dby `ls` and returns a list of records.
+
+See Examples for more details.
 
 ## Error handling
 
 `dcm` plugin works in two modes:
-- default, when errors are reported as error rows,
-- in custom columns when `--error` option is used. This will report all errors in the specified column. Empty column value means no error.
+- default, when errors are reported as error rows, reported by nu,
+- when `--error` option is used, errors are reported in provided column. If there were no errors, the column value is empty.
 
 ## Known Limitations
 
@@ -35,16 +38,15 @@ send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discus
   Without `into binary`, `dcm` would see a list of strings, assuming it's a list of filenames.
 
 
-
 ## Examples
 
-### Output DICOM file as a table
+### Output DICOM file as a record/table (list of records)
 ```sh
 echo file.dcm | dcm                   # uses filename/string to specify which file to open
 open --raw file.dcm | dcm             # pass binary data to `dcm`
 ls file.dcm | dcm name                # use `name` column as the filename (equivalent of `ls file.dcm | select name | dcm`)
 echo file.dcm | wrap foo | dcm foo    # use `foo` column as the filename
-open -r file.dcm | wrap foo | dcm foo # use `foo` column as binary data
+open -r file.dcm | into binary | wrap foo | dcm foo # use `foo` column as binary data (see Known Limitations for details)
 ```
 
 ### Dump DICOM file as a JSON/YAML document
@@ -66,6 +68,7 @@ ls **/* |
   where type == file |
   dcm name -e error |
   where error == "" |
+  select --ignore-errors SOPInstanceUID Modality |
   group-by Modality
 ```
 
@@ -93,7 +96,7 @@ ls **/* | where type == file |
   par-each { |it| {
     name: $it.name,
     size: $it.size,
-    sha256: (open $it.name | hash sha256),
+    sha256: (open --raw $it.name | hash sha256),
     dcm: ($it.name | dcm -e error)
    } } |
    select --ignore-errors name size sha256 dcm.Modality dcm.SOPInstanceUID dcm.error |
@@ -118,5 +121,5 @@ plugin add ~/.cargo/bin/nu_plugin_dcm
 To start using it without restarting nu, you can [import it](https://www.nushell.sh/book/plugins.html#importing-plugins):
 
 ```nu
-plugin use nu_plugin_dcm
+plugin use ~/.cargo/bin/nu_plugin_dcm
 ```

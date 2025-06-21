@@ -12,7 +12,7 @@ use nu_plugin::{EngineInterface, Plugin, PluginCommand};
 use nu_protocol::ast::CellPath;
 use nu_protocol::{
     Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span,
-    SyntaxShape, Type, Value,
+    SyntaxShape, Value,
 };
 
 #[derive(Default)]
@@ -45,6 +45,7 @@ impl PluginCommand for DcmPluginCommand {
     }
 
     fn signature(&self) -> Signature {
+        /*
         // Some example DICOM fields
         let dicom_record_fields = vec![
             ("StudyInstanceUID".to_string(), Type::String),
@@ -64,8 +65,12 @@ impl PluginCommand for DcmPluginCommand {
 
         let dicom_record_type = Type::Record(dicom_record_fields.into_boxed_slice());
         let file_record_type = Type::Record(file_record_fields.into_boxed_slice());
+        */
 
         Signature::build(nu_plugin::PluginCommand::name(self))
+            // TODO is it possible to specify all input/output types? The plugin is very
+            // dynamic and e.g. `echo file.dcm | wrap foo | dcm foo` failed the type check...
+            /*
             .input_output_types(
                 vec![
                     // String (filename) -> Record (DICOM data)
@@ -81,6 +86,7 @@ impl PluginCommand for DcmPluginCommand {
                     // List of file records) -> List of Records (e.g. `ls *.dcm | dcm name`)
                     (Type::List(Box::new(file_record_type.clone())), Type::List(Box::new(dicom_record_type))),
                 ])
+              */
             .named(
                 "error",
                 SyntaxShape::String,
