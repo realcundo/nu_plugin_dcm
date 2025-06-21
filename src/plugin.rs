@@ -8,10 +8,11 @@ use crate::dcm;
 use dicom::object::DefaultDicomObject;
 use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
-use nu_plugin::{EngineInterface, Plugin, SimplePluginCommand};
+use nu_plugin::{EngineInterface, Plugin, PluginCommand};
 use nu_protocol::ast::CellPath;
 use nu_protocol::{
-    Category, Example, LabeledError, Record, ShellError, Signature, Span, SyntaxShape, Type, Value,
+    Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 
 #[derive(Default)]
@@ -32,7 +33,7 @@ impl Plugin for DcmPlugin {
 #[derive(Default)]
 pub struct DcmPluginCommand;
 
-impl SimplePluginCommand for DcmPluginCommand {
+impl PluginCommand for DcmPluginCommand {
     type Plugin = DcmPlugin;
 
     fn name(&self) -> &str {
@@ -134,9 +135,24 @@ impl SimplePluginCommand for DcmPluginCommand {
         plugin: &DcmPlugin,
         engine: &EngineInterface,
         call: &nu_plugin::EvaluatedCall,
-        input: &Value,
-    ) -> Result<Value, LabeledError> {
+        input: PipelineData,
+    ) -> Result<PipelineData, LabeledError> {
         let current_dir = engine.get_current_dir().map(PathBuf::from);
+
+        let span = input.span().unwrap_or(call.head);
+        let input_metadata = input.metadata();
+
+        // Convert input PipelineData to Value. The default behaviour for BinaryStream is to detect the type of the stream and if unknown, try to read it as a UTF-8 string.
+        // This behaviour is wrong for us, since we want to read any binary input stream as binary data.
+        // Unfortunately, a list of `[(`open file.dcm`), ...]` gets converted to a list of strings by nushell before we can access it.
+        let input = if let PipelineData::ByteStream(byte_stream, ..) = input {
+            // TODO eventually support streaming?
+            let bytes = byte_stream.into_bytes()?;
+            Value::binary(bytes, span)
+        } else {
+            // convert PipelineData to Value the usual way
+            input.into_value(span)?
+        };
 
         // parse args, nu makes sure the num of args and type is correct
         let source_column = call.nth(0);
@@ -154,13 +170,18 @@ impl SimplePluginCommand for DcmPluginCommand {
         };
 
         // run
-        self.run_filter(
+        let output = self.run_filter(
             plugin,
             current_dir.as_deref(),
-            input,
+            &input,
             source_column,
             error_column,
-        )
+        )?;
+
+        // Forward DataSource metadata from input to output, but clear any content type. This keeps the source.
+        let output_metadata = input_metadata.map(|m| m.with_content_type(None));
+
+        Ok(PipelineData::Value(output, output_metadata))
     }
 }
 
@@ -223,13 +244,21 @@ impl DcmPluginCommand {
                 val, internal_span, ..
             } => {
                 // make absolute if needed
-                let val = resolve_path(val, current_dir, value.span())?;
+                let file = resolve_path(val, current_dir, value.span())?;
 
-                let obj = read_dcm_file(&val).map_err(|e| {
-                    LabeledError::new("`dcm` expects valid DICOM binary data").with_label(
-                        format!("{} [file {}]", e, val.to_string_lossy()),
-                        *internal_span,
-                    )
+                // TODO add some heuristics to determine if the input string is filename or DICOM binary data connverted to utf-8 by nu?
+                // (see `ByteStream::into_value()` which does the conversion to string.)
+
+                let obj = read_dcm_file(&file).map_err(|e| {
+                    // Report a better error if the input string looks like DICOM binary data with preamble.
+                    // TODO this is messy. In fact the whole error reporting is messy.
+                    let text = if val.get(128..132) == Some("DICM") {
+                        "Input string looks like DICOM binary data. Either pass binary data, or a filename.".to_string()
+                    } else {
+                        format!("{} [file {}]", e, file.to_string_lossy())
+                    };
+
+                    LabeledError::new("`dcm` expects valid DICOM binary data").with_label( text, *internal_span)
                 })?;
 
                 self.process_dicom_object(plugin, internal_span, obj, error_column)

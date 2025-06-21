@@ -1,4 +1,4 @@
-use nu_plugin_dcm::plugin::DcmPlugin;
+use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
 use nu_plugin_test_support::PluginTest;
 use nu_protocol::{record, IntoPipelineData, Span, Value};
 use std::path::PathBuf;
@@ -13,11 +13,14 @@ macro_rules! assert_dicom_field {
     };
 }
 
-fn get_asset_path(filename: &str) -> PathBuf {
+fn get_asset_base_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("assets")
-        .join(filename)
+}
+
+fn get_asset_path(filename: &str) -> PathBuf {
+    get_asset_base_path().join(filename)
 }
 
 fn create_binary_value(filename: &str) -> Result<Value, Box<dyn std::error::Error>> {
@@ -36,6 +39,82 @@ fn create_file_record_value<S: AsRef<str>>(filename: S) -> Value {
         },
         Span::test_data(),
     )
+}
+
+#[test]
+#[ignore]
+fn test_examples() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+
+    plugin_test.add_decl(Box::new(nu_command::Open))?;
+    plugin_test.add_decl(Box::new(nu_command::Ls))?;
+
+    plugin_test.engine_state_mut().add_env_var(
+        "PWD".to_string(),
+        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
+    );
+
+    plugin_test.test_command_examples(&DcmPluginCommand)
+}
+
+#[test]
+fn test_command_scalar_open() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+
+    plugin_test.add_decl(Box::new(nu_command::Open))?;
+
+    plugin_test.engine_state_mut().add_env_var(
+        "PWD".to_string(),
+        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
+    );
+
+    let result = plugin_test.eval("open --raw file.dcm | dcm")?;
+    let result = result.into_value(Span::test_data())?;
+
+    // TODO actually test the result
+    assert!(result.as_record().is_ok());
+    Ok(())
+}
+
+#[test]
+fn test_command_vector_open() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+
+    plugin_test.add_decl(Box::new(nu_command::Open))?;
+    plugin_test.add_decl(Box::new(nu_command::IntoBinary))?;
+
+    plugin_test.engine_state_mut().add_env_var(
+        "PWD".to_string(),
+        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
+    );
+
+    let result = plugin_test
+        .eval("[(open --raw file.dcm | into binary), (open --raw file.dcm | into binary)] | dcm")?;
+
+    let result = result.into_value(Span::test_data())?;
+
+    // TODO actually test the result
+    assert!(result.as_list().is_ok());
+    Ok(())
+}
+
+#[test]
+fn test_command_ls() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+
+    plugin_test.add_decl(Box::new(nu_command::Ls))?;
+
+    plugin_test.engine_state_mut().add_env_var(
+        "PWD".to_string(),
+        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
+    );
+
+    let result = plugin_test.eval("ls *.dcm | dcm name")?;
+    let result = result.into_value(Span::test_data())?;
+
+    // TODO actually test the result
+    assert!(result.as_list().is_ok());
+    Ok(())
 }
 
 /// Simulate `open file | dcm`
@@ -138,7 +217,7 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
 
     // Create multiple records that simulate what 'ls *.dcm' would produce
-    let test_files = vec![
+    let test_files = [
         "ExplicitVRLittleEndian-Preamble.dcm",
         "ExplicitVRBigEndian-Preamble.dcm",
         "ImplicitVRLittleEndian-Preamble.dcm",
@@ -173,7 +252,7 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Verify specific patient names match the filenames
-    let expected_names = vec![
+    let expected_names = [
         "ExplicitVRLittleEndian-Preamble",
         "ExplicitVRBigEndian-Preamble",
         "ImplicitVRLittleEndian-Preamble",

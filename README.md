@@ -2,18 +2,18 @@
 
 *Note that this plugin works with nu 0.105. If you want to use nu 0.60, use version 0.1.8 of this plugin.*
 
-A [nushell](https://www.nushell.sh/) plugin to parse [Dicom](https://en.wikipedia.org/wiki/DICOM) objects.
+A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedia.org/wiki/DICOM) objects.
 
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
-with all Dicom objects. One notable limitation is that all Dicom objects are expected to have a preamble.
+with all DICOM objects. One notable limitation is that all DICOM objects are expected to have a preamble.
 
 I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out,
 send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
 `dcm` plugin reads its input from single values or from specific columns:
-- `dcm`: expects a string/filename or binary Dicom data
-- `dcm $column_name`: reads a string/filename or binary Dicom data from `$column`. This is
+- `dcm`: expects a string/filename or binary DICOM data
+- `dcm $column_name`: reads a string/filename or binary DICOM data from `$column`. This is
   equivalent to `get $column | dcm`.
 
 ## Error handling
@@ -24,28 +24,36 @@ send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discus
 
 ## Known Limitations
 
-- Dicom objects without a preamble and DCIM header will fail to load.
-- PixelData is always skipped. For now I'm considering this to be a feature that speeds up Dicom parsing.
+- DICOM objects without a preamble and DCIM header will fail to load.
+- PixelData is always skipped. For now I'm considering this to be a feature that speeds up DICOM parsing.
+- `dcm` can process binary data. You can pass it directly to `dcm` as `open --raw file.dcm | dcm`. However, when passing a list of binary streams,
+  `nushell` will try to convert it to a list of strings. To work around this, use `into binary`, e.g.:
+  ```sh
+  [(open --raw file1.dcm | into binary), (open --raw file2.dcm | into binary)] | dcm
+  ```
+
+  Without `into binary`, `dcm` would see a list of strings, assuming it's a list of filenames.
+
 
 
 ## Examples
 
-### Output Dicom file as a table
+### Output DICOM file as a table
 ```sh
-echo file.dcm | dcm                # uses filename/string to specify which file to open
-open file.dcm | dcm                # pass binary data to `dcm`
-ls file.dcm | dcm name             # use `name` column as the filename
-echo file.dcm | wrap foo | dcm foo # use `foo` column as the filename
-open file.dcm | wrap foo | dcm foo # use `foo` column as binary data
+echo file.dcm | dcm                   # uses filename/string to specify which file to open
+open --raw file.dcm | dcm             # pass binary data to `dcm`
+ls file.dcm | dcm name                # use `name` column as the filename (equivalent of `ls file.dcm | select name | dcm`)
+echo file.dcm | wrap foo | dcm foo    # use `foo` column as the filename
+open -r file.dcm | wrap foo | dcm foo # use `foo` column as binary data
 ```
 
-### Dump Dicom file as a JSON/YAML document
+### Dump DICOM file as a JSON/YAML document
 ```sh
-open file.dcm | dcm | to json --indent 2
-open file.dcm | dcm | to yaml
+open -r file.dcm | dcm | to json --indent 2
+open -r file.dcm | dcm | to yaml
 ```
 
-### Dump all Dicom files in the current directory to a JSON/YAML document
+### Dump all DICOM files in the current directory to a JSON/YAML document
 ```sh
 ls *.dcm | dcm name | to json --indent 2
 ls *.dcm | dcm name | to yaml
@@ -78,7 +86,7 @@ would fail since selected columns are missing. Another option would be using `de
 for missing columns.)
 
 
-### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a Dicom parsing error, if any
+### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a DICOM parsing error, if any
 Use `par-each` to process files in parallel:
 ```sh
 ls **/* | where type == file |
