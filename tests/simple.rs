@@ -1,19 +1,12 @@
 use std::env;
-use std::path::PathBuf;
 
 use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
 use nu_protocol::{LabeledError, Record};
 
 use nu_protocol::{Span, Value};
-use test_utils::get_asset_path;
+use test_utils::{filepath, get_asset_path};
 
 mod test_utils;
-
-pub fn filepath(input: impl Into<PathBuf>) -> Value {
-    let input: PathBuf = input.into();
-
-    Value::test_string(input.as_os_str().to_str().unwrap())
-}
 
 #[test]
 fn no_input_without_errors() {

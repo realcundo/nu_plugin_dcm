@@ -1,7 +1,6 @@
-use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
-use nu_plugin_test_support::PluginTest;
+use nu_plugin_dcm::plugin::DcmPluginCommand;
 use nu_protocol::{record, IntoPipelineData, Span, Value};
-use test_utils::{get_asset_base_path, get_asset_path};
+use test_utils::{get_asset_path, setup_plugin_for_test};
 
 mod test_utils;
 
@@ -26,29 +25,15 @@ fn create_file_record_value<S: AsRef<str>>(filename: S) -> Value {
 #[test]
 #[ignore]
 fn test_examples() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
-
-    plugin_test.add_decl(Box::new(nu_command::Open))?;
-    plugin_test.add_decl(Box::new(nu_command::Ls))?;
-
-    plugin_test.engine_state_mut().add_env_var(
-        "PWD".to_string(),
-        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
-    );
+    let mut plugin_test =
+        setup_plugin_for_test(vec![Box::new(nu_command::Open), Box::new(nu_command::Ls)])?;
 
     plugin_test.test_command_examples(&DcmPluginCommand)
 }
 
 #[test]
 fn test_command_scalar_open() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
-
-    plugin_test.add_decl(Box::new(nu_command::Open))?;
-
-    plugin_test.engine_state_mut().add_env_var(
-        "PWD".to_string(),
-        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
-    );
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Open)])?;
 
     let result = plugin_test.eval("open --raw file.dcm | dcm")?;
     let result = result.into_value(Span::test_data())?;
@@ -60,15 +45,10 @@ fn test_command_scalar_open() -> Result<(), nu_protocol::ShellError> {
 
 #[test]
 fn test_command_vector_open() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
-
-    plugin_test.add_decl(Box::new(nu_command::Open))?;
-    plugin_test.add_decl(Box::new(nu_command::IntoBinary))?;
-
-    plugin_test.engine_state_mut().add_env_var(
-        "PWD".to_string(),
-        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
-    );
+    let mut plugin_test = setup_plugin_for_test(vec![
+        Box::new(nu_command::Open),
+        Box::new(nu_command::IntoBinary),
+    ])?;
 
     let result = plugin_test
         .eval("[(open --raw file.dcm | into binary), (open --raw file.dcm | into binary)] | dcm")?;
@@ -82,14 +62,7 @@ fn test_command_vector_open() -> Result<(), nu_protocol::ShellError> {
 
 #[test]
 fn test_command_ls() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
-
-    plugin_test.add_decl(Box::new(nu_command::Ls))?;
-
-    plugin_test.engine_state_mut().add_env_var(
-        "PWD".to_string(),
-        Value::string(get_asset_base_path().to_string_lossy(), Span::test_data()),
-    );
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Ls)])?;
 
     let result = plugin_test.eval("ls *.dcm | dcm name")?;
     let result = result.into_value(Span::test_data())?;
@@ -103,7 +76,7 @@ fn test_command_ls() -> Result<(), nu_protocol::ShellError> {
 #[test]
 fn test_scalar_binary_input() -> Result<(), Box<dyn std::error::Error>> {
     // Test with direct binary input using eval_with method
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     let binary_value = create_binary_value("ExplicitVRLittleEndian-Preamble.dcm")?;
 
@@ -122,7 +95,7 @@ fn test_scalar_binary_input() -> Result<(), Box<dyn std::error::Error>> {
 /// Simulate `[file1, file2] | each { |f| open $f } | dcm`
 #[test]
 fn test_vector_binary_input() -> Result<(), Box<dyn std::error::Error>> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     let test_files = vec![
         "ExplicitVRLittleEndian-Preamble.dcm",
@@ -158,7 +131,7 @@ fn test_vector_binary_input() -> Result<(), Box<dyn std::error::Error>> {
 /// Simulate `"file.dcm" | dcm` (string file path input)
 #[test]
 fn test_string_file_path_input() -> Result<(), Box<dyn std::error::Error>> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     let test_file = get_asset_path("ExplicitVRBigEndian-Preamble.dcm");
     let file_path_value = Value::string(test_file.to_string_lossy(), Span::test_data());
@@ -176,7 +149,7 @@ fn test_string_file_path_input() -> Result<(), Box<dyn std::error::Error>> {
 /// Simulate `ls *.dcm | dcm name` matching a single file
 #[test]
 fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     // Create a record that simulates what 'ls' would produce
     let file_record = create_file_record_value("ImplicitVRLittleEndian-Preamble.dcm");
@@ -196,7 +169,7 @@ fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
 /// Simulate `ls *.dcm | dcm name` with multiple matching files
 #[test]
 fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
-    let mut plugin_test = PluginTest::new("dcm", DcmPlugin::default().into())?;
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     // Create multiple records that simulate what 'ls *.dcm' would produce
     let test_files = [
