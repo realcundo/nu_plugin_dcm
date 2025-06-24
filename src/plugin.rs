@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
+use crate::dicomweb::{DicomWebDump, is_dicom_record};
 use crate::meta::make_row_from_dicom_metadata;
 use crate::reader::{read_dcm_file, read_dcm_stream};
 
@@ -10,10 +11,7 @@ use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
 use nu_plugin::{EngineInterface, Plugin, PluginCommand};
 use nu_protocol::ast::CellPath;
-use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span,
-    SyntaxShape, Value,
-};
+use nu_protocol::{Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span, SyntaxShape, Value};
 
 #[derive(Default)]
 pub struct DcmPlugin {
@@ -112,27 +110,12 @@ impl PluginCommand for DcmPluginCommand {
                     ("PatientName".to_string(), Value::test_string("John Doe")),
                     ("Modality".to_string(), Value::test_string("CT")),
                     ("StudyDate".to_string(), Value::test_string("20231201")),
-                    (
-                        "ImageType".to_string(),
-                        Value::test_string("ORIGINAL\\PRIMARY"),
-                    ),
+                    ("ImageType".to_string(), Value::test_string("ORIGINAL\\PRIMARY")),
                 ]))),
             },
-            Example {
-                description: "Parse DICOM files from a list",
-                example: "ls *.dcm | dcm name",
-                result: None,
-            },
-            Example {
-                description: "Parse a specific file by filename",
-                example: "\"file.dcm\" | dcm",
-                result: None,
-            },
-            Example {
-                description: "Parse with error handling",
-                example: "ls *.dcm | dcm name --error parse_error",
-                result: None,
-            },
+            Example { description: "Parse DICOM files from a list", example: "ls *.dcm | dcm name", result: None },
+            Example { description: "Parse a specific file by filename", example: "\"file.dcm\" | dcm", result: None },
+            Example { description: "Parse with error handling", example: "ls *.dcm | dcm name --error parse_error", result: None },
         ]
     }
 
@@ -143,9 +126,13 @@ impl PluginCommand for DcmPluginCommand {
         call: &nu_plugin::EvaluatedCall,
         input: PipelineData,
     ) -> Result<PipelineData, LabeledError> {
-        let current_dir = engine.get_current_dir().map(PathBuf::from);
+        let current_dir = engine
+            .get_current_dir()
+            .map(PathBuf::from);
 
-        let span = input.span().unwrap_or(call.head);
+        let span = input
+            .span()
+            .unwrap_or(call.head);
         let input_metadata = input.metadata();
 
         // Convert input PipelineData to Value. The default behaviour for BinaryStream is to detect the type of the stream and if unknown, try to read it as a UTF-8 string.
@@ -176,13 +163,7 @@ impl PluginCommand for DcmPluginCommand {
         };
 
         // run
-        let output = self.run_filter(
-            plugin,
-            current_dir.as_deref(),
-            &input,
-            source_column,
-            error_column,
-        )?;
+        let output = self.run_filter(plugin, current_dir.as_deref(), &input, source_column, error_column)?;
 
         // Forward DataSource metadata from input to output, but clear any content type. This keeps the source.
         let output_metadata = input_metadata.map(|m| m.with_content_type(None));
@@ -226,7 +207,11 @@ impl DcmPluginCommand {
             (Some(error_column), Err(err)) => Ok(Value::record(
                 Record::from_raw_cols_vals(
                     vec![error_column.to_string()],
-                    vec![Value::string(err.msg.to_string(), value.span())],
+                    vec![Value::string(
+                        err.msg
+                            .to_string(),
+                        value.span(),
+                    )],
                     Span::unknown(),
                     Span::unknown(),
                 )?,
@@ -244,9 +229,7 @@ impl DcmPluginCommand {
         error_column: &Option<String>,
     ) -> Result<Value, LabeledError> {
         match &value {
-            Value::String {
-                val, internal_span, ..
-            } => {
+            Value::String { val, internal_span, .. } => {
                 // make absolute if needed
                 let file = resolve_path(val, current_dir, value.span())?;
 
@@ -262,49 +245,45 @@ impl DcmPluginCommand {
                         format!("{} [file {}]", e, file.to_string_lossy())
                     };
 
-                    LabeledError::new("`dcm` expects valid DICOM binary data").with_label( text, *internal_span)
+                    LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
                 })?;
 
                 self.process_dicom_object(plugin, internal_span, obj, error_column)
             }
             Value::Record { val, internal_span } => {
+                // Check if a file record
                 let record_type = get_record_string(val, "type");
                 let record_name = get_record_string(val, "name");
 
-                match (record_type, record_name) {
-                    // Probably a file Record
-                    (Some("file"), Some(name)) => {
-                        Err(LabeledError::new("Cannot process file records directly")
+                if let (Some(record_type), Some(record_name)) = (record_type, record_name) {
+                    if record_type == "file" {
+                        return Err(LabeledError::new("Cannot process file records directly")
                             .with_help("Extract the filename first using: `dcm name`, `get name | dcm`, or `select name | dcm`")
-                            .with_label(
-                                format!("Found file record with name: '{}'", name),
-                                *internal_span
-                            ))
+                            .with_label(format!("Found file record with name: '{record_name}'"), *internal_span));
                     }
-                    // Output generic record error
-                    _ =>  Err(LabeledError::new("Cannot process records directly")
-                           .with_label(
-                               "Select file name or binary data from the record before passing it to dcm",
-                               *internal_span
-                           ))
                 }
+
+                // Check if it looks like a dicomweb record.
+                if record_name.is_none() && record_type.is_none() && is_dicom_record(val) {
+                    let dcm_dumper = DicomWebDump::with_dictionary(&plugin.dcm_dictionary);
+                    let result = dcm_dumper
+                        .process_dicomweb_record(val, *internal_span)
+                        .map_err(|e| LabeledError::new("Failed to proess DicomWeb record").with_label(e.to_string(), e.span()))?;
+
+                    return Ok(result);
+                }
+
+                // Output generic error
+                Err(LabeledError::new("Cannot process records directly, unless they are DicomWeb records")
+                    .with_label("For files, select file name or binary data from the record before passing it to dcm", *internal_span))
             }
-            Value::Binary {
-                val, internal_span, ..
-            } => {
+            Value::Binary { val, internal_span, .. } => {
                 let cursor = Cursor::new(val);
-                let obj = read_dcm_stream(cursor).map_err(|e| {
-                    LabeledError::new("Invalid DICOM data")
-                        .with_label(e.to_string(), *internal_span)
-                })?;
+                let obj = read_dcm_stream(cursor).map_err(|e| LabeledError::new("Invalid DICOM data").with_label(e.to_string(), *internal_span))?;
 
                 self.process_dicom_object(plugin, internal_span, obj, error_column)
             }
-            Value::List {
-                vals,
-                internal_span,
-                ..
-            } => {
+            Value::List { vals, internal_span, .. } => {
                 // Use either a dicom result or an error for each input element>
                 let result: Vec<Value> = vals
                     .iter()
@@ -316,10 +295,8 @@ impl DcmPluginCommand {
 
                 Ok(Value::list(result, *internal_span))
             }
-            _ => Err(LabeledError::new("Unrecognized type in stream").with_label(
-                "'dcm' expects a string (filepath), binary, or column path",
-                value.span(),
-            )),
+            _ => Err(LabeledError::new("Unrecognized type in stream")
+                .with_label("'dcm' expects a string (filepath), binary, or column path", value.span())),
         }
     }
 
@@ -330,18 +307,13 @@ impl DcmPluginCommand {
         obj: DefaultDicomObject,
         error_column: &Option<String>,
     ) -> Result<Value, LabeledError> {
-        let dcm_dumper = dcm::DicomDump {
-            dcm_dictionary: &plugin.dcm_dictionary,
-        };
+        let dcm_dumper = dcm::DicomDump { dcm_dictionary: &plugin.dcm_dictionary };
 
         let mut index_map = IndexMap::with_capacity(1000);
 
         // make sure that when --error is used, the column always exists
         if let Some(error_column) = error_column {
-            index_map.insert(
-                error_column.to_string(),
-                Value::string(String::new(), *span),
-            );
+            index_map.insert(error_column.to_string(), Value::string(String::new(), *span));
         }
 
         // dump both metadata and data into a single table
@@ -353,7 +325,10 @@ impl DcmPluginCommand {
     }
 }
 
-fn get_record_string<'a>(record: &'a Record, field_name: &str) -> Option<&'a str> {
+fn get_record_string<'a>(
+    record: &'a Record,
+    field_name: &str,
+) -> Option<&'a str> {
     let value = record.get(field_name)?;
     let Value::String { val, .. } = value else {
         return None;
@@ -377,13 +352,8 @@ fn resolve_path(
 
     // Path is relative, need to resolve against current working directory
     let current_dir = current_dir.map_err(|e| {
-        LabeledError::new("Failed to get current working directory").with_label(
-            format!(
-                "Cannot resolve relative path '{}'\n\nError: {}",
-                filename, e
-            ),
-            span,
-        )
+        LabeledError::new("Failed to get current working directory")
+            .with_label(format!("Cannot resolve relative path '{filename}'\n\nError: {e}"), span)
     })?;
 
     Ok(PathBuf::from(current_dir).join(filename))

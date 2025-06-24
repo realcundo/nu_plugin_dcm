@@ -1,10 +1,10 @@
 use std::env;
 
 use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
-use nu_protocol::{LabeledError, Record};
+use nu_protocol::LabeledError;
 
 use nu_protocol::{Span, Value};
-use test_utils::{filepath, get_asset_path};
+use test_utils::{filepath, get_asset_path, get_string_by_cell_path};
 
 mod test_utils;
 
@@ -18,10 +18,9 @@ fn no_input_without_errors() {
 
     let actual = cmd.run_filter(&p, current_dir, &Value::test_nothing(), None, None);
 
-    let expected = Err(LabeledError::new("Unrecognized type in stream").with_label(
-        "'dcm' expects a string (filepath), binary, or column path",
-        Span::test_data(),
-    ));
+    let expected =
+        Err(LabeledError::new("Unrecognized type in stream")
+            .with_label("'dcm' expects a string (filepath), binary, or column path", Span::test_data()));
 
     assert_eq!(actual, expected);
 }
@@ -36,20 +35,12 @@ fn read_explicit_vr_big_endian_preamble() {
     let cmd = DcmPluginCommand;
 
     let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual_value = actual.unwrap();
 
-    let expected = Ok(Value::test_record(
-        [
-            ("TransferSyntax", "1.2.840.10008.1.2.2"),
-            ("MediaStorageSOPClassUID", "1.2.840.10008.5.1.4.1.1.2"),
-            ("MediaStorageSOPInstanceUID", "1.2.3"),
-            ("PatientName", "ExplicitVRBigEndian-Preamble"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>(),
-    ));
-
-    assert_eq!(actual, expected);
+    assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2.2");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPClassUID"), "1.2.840.10008.5.1.4.1.1.2");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPInstanceUID"), "1.2.3");
+    assert_eq!(get_string_by_cell_path(&actual_value, "PatientName"), "ExplicitVRBigEndian-Preamble");
 }
 
 #[test]
@@ -62,20 +53,12 @@ fn read_explicit_vr_little_endian_preamble() {
     let cmd = DcmPluginCommand;
 
     let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual_value = actual.unwrap();
 
-    let expected = Ok(Value::test_record(
-        [
-            ("TransferSyntax", "1.2.840.10008.1.2.1"),
-            ("MediaStorageSOPClassUID", "1.2.840.10008.5.1.4.1.1.2"),
-            ("MediaStorageSOPInstanceUID", "1.2.3"),
-            ("PatientName", "ExplicitVRLittleEndian-Preamble"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>(),
-    ));
-
-    assert_eq!(actual, expected);
+    assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2.1");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPClassUID"), "1.2.840.10008.5.1.4.1.1.2");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPInstanceUID"), "1.2.3");
+    assert_eq!(get_string_by_cell_path(&actual_value, "PatientName"), "ExplicitVRLittleEndian-Preamble");
 }
 
 #[test]
@@ -87,20 +70,12 @@ fn read_implicit_vr_little_endian_preamble() {
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
     let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual_value = actual.unwrap();
 
-    let expected = Ok(Value::test_record(
-        [
-            ("TransferSyntax", "1.2.840.10008.1.2"),
-            ("MediaStorageSOPClassUID", "1.2.840.10008.5.1.4.1.1.2"),
-            ("MediaStorageSOPInstanceUID", "1.2.3"),
-            ("PatientName", "ImplicitVRLittleEndian-Preamble"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), Value::string(v, Span::test_data())))
-        .collect::<Record>(),
-    ));
-
-    assert_eq!(actual, expected);
+    assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPClassUID"), "1.2.840.10008.5.1.4.1.1.2");
+    assert_eq!(get_string_by_cell_path(&actual_value, "MediaStorageSOPInstanceUID"), "1.2.3");
+    assert_eq!(get_string_by_cell_path(&actual_value, "PatientName"), "ImplicitVRLittleEndian-Preamble");
 }
 
 #[test]

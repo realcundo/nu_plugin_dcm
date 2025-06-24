@@ -195,7 +195,7 @@
           },
           "00100021": {
             "vr": "LO",
-            "Value": ["Hospital B"]
+            "Value": ["Hospital B2"]
           }
         },
         {
@@ -205,7 +205,7 @@
           },
           "00100021": {
             "vr": "LO",
-            "Value": ["Hospital C"]
+            "Value": ["Hospital C2"]
           }
         }
       ]

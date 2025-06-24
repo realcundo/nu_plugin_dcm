@@ -1,6 +1,6 @@
 use nu_plugin_dcm::plugin::DcmPluginCommand;
-use nu_protocol::{record, IntoPipelineData, Span, Value};
-use test_utils::{get_asset_path, setup_plugin_for_test};
+use nu_protocol::{IntoPipelineData, Span, Value, record};
+use test_utils::{get_asset_path, get_string_by_cell_path, setup_plugin_for_test};
 
 mod test_utils;
 
@@ -25,8 +25,7 @@ fn create_file_record_value<S: AsRef<str>>(filename: S) -> Value {
 #[test]
 #[ignore]
 fn test_examples() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test =
-        setup_plugin_for_test(vec![Box::new(nu_command::Open), Box::new(nu_command::Ls)])?;
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Open), Box::new(nu_command::Ls)])?;
 
     plugin_test.test_command_examples(&DcmPluginCommand)
 }
@@ -39,24 +38,28 @@ fn test_command_scalar_open() -> Result<(), nu_protocol::ShellError> {
     let result = result.into_value(Span::test_data())?;
 
     // TODO actually test the result
-    assert!(result.as_record().is_ok());
+    assert!(
+        result
+            .as_record()
+            .is_ok()
+    );
     Ok(())
 }
 
 #[test]
 fn test_command_vector_open() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = setup_plugin_for_test(vec![
-        Box::new(nu_command::Open),
-        Box::new(nu_command::IntoBinary),
-    ])?;
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Open), Box::new(nu_command::IntoBinary)])?;
 
-    let result = plugin_test
-        .eval("[(open --raw file.dcm | into binary), (open --raw file.dcm | into binary)] | dcm")?;
+    let result = plugin_test.eval("[(open --raw file.dcm | into binary), (open --raw file.dcm | into binary)] | dcm")?;
 
     let result = result.into_value(Span::test_data())?;
 
     // TODO actually test the result
-    assert!(result.as_list().is_ok());
+    assert!(
+        result
+            .as_list()
+            .is_ok()
+    );
     Ok(())
 }
 
@@ -68,7 +71,11 @@ fn test_command_ls() -> Result<(), nu_protocol::ShellError> {
     let result = result.into_value(Span::test_data())?;
 
     // TODO actually test the result
-    assert!(result.as_list().is_ok());
+    assert!(
+        result
+            .as_list()
+            .is_ok()
+    );
     Ok(())
 }
 
@@ -84,10 +91,8 @@ fn test_scalar_binary_input() -> Result<(), Box<dyn std::error::Error>> {
     let pipeline_data = plugin_test.eval_with("dcm", binary_value.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
-    let record = result.as_record()?;
-
-    assert_dicom_field!(record, "TransferSyntax", "1.2.840.10008.1.2.1");
-    assert_dicom_field!(record, "PatientName", "ExplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "TransferSyntax"), "1.2.840.10008.1.2.1");
+    assert_eq!(get_string_by_cell_path(&result, "PatientName"), "ExplicitVRLittleEndian-Preamble");
 
     Ok(())
 }
@@ -97,11 +102,7 @@ fn test_scalar_binary_input() -> Result<(), Box<dyn std::error::Error>> {
 fn test_vector_binary_input() -> Result<(), Box<dyn std::error::Error>> {
     let mut plugin_test = setup_plugin_for_test(vec![])?;
 
-    let test_files = vec![
-        "ExplicitVRLittleEndian-Preamble.dcm",
-        "ExplicitVRBigEndian-Preamble.dcm",
-        "ImplicitVRLittleEndian-Preamble.dcm",
-    ];
+    let test_files = vec!["ExplicitVRLittleEndian-Preamble.dcm", "ExplicitVRBigEndian-Preamble.dcm", "ImplicitVRLittleEndian-Preamble.dcm"];
 
     // Create a list of binary values (simulating what multiple 'open' commands would produce)
     let binary_list = test_files
@@ -114,16 +115,14 @@ fn test_vector_binary_input() -> Result<(), Box<dyn std::error::Error>> {
     let pipeline_data = plugin_test.eval_with("dcm", list_value.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
-    let records = result.as_list()?;
+    assert_eq!(get_string_by_cell_path(&result, "0.PatientName"), "ExplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "0.TransferSyntax"), "1.2.840.10008.1.2.1");
 
-    assert_eq!(records.len(), 3, "Should process all 3 files");
+    assert_eq!(get_string_by_cell_path(&result, "1.PatientName"), "ExplicitVRBigEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "1.TransferSyntax"), "1.2.840.10008.1.2.2");
 
-    for val in records {
-        let record = val.as_record()?;
-
-        assert!(record.get("TransferSyntax").is_some());
-        assert!(record.get("PatientName").is_some());
-    }
+    assert_eq!(get_string_by_cell_path(&result, "2.PatientName"), "ImplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "2.TransferSyntax"), "1.2.840.10008.1.2");
 
     Ok(())
 }
@@ -139,10 +138,8 @@ fn test_string_file_path_input() -> Result<(), Box<dyn std::error::Error>> {
     let pipeline_data = plugin_test.eval_with("dcm", file_path_value.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
-    let record = result.as_record()?;
-
-    assert_dicom_field!(record, "TransferSyntax", "1.2.840.10008.1.2.2");
-    assert_dicom_field!(record, "PatientName", "ExplicitVRBigEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "TransferSyntax"), "1.2.840.10008.1.2.2");
+    assert_eq!(get_string_by_cell_path(&result, "PatientName"), "ExplicitVRBigEndian-Preamble");
 
     Ok(())
 }
@@ -158,10 +155,8 @@ fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let pipeline_data = plugin_test.eval_with("dcm name", file_record.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
-    let record = result.as_record()?;
-
-    assert_dicom_field!(record, "TransferSyntax", "1.2.840.10008.1.2");
-    assert_dicom_field!(record, "PatientName", "ImplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "TransferSyntax"), "1.2.840.10008.1.2");
+    assert_eq!(get_string_by_cell_path(&result, "PatientName"), "ImplicitVRLittleEndian-Preamble");
 
     Ok(())
 }
@@ -172,13 +167,12 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let mut plugin_test = setup_plugin_for_test(vec![])?;
 
     // Create multiple records that simulate what 'ls *.dcm' would produce
-    let test_files = [
-        "ExplicitVRLittleEndian-Preamble.dcm",
-        "ExplicitVRBigEndian-Preamble.dcm",
-        "ImplicitVRLittleEndian-Preamble.dcm",
-    ];
+    let test_files = ["ExplicitVRLittleEndian-Preamble.dcm", "ExplicitVRBigEndian-Preamble.dcm", "ImplicitVRLittleEndian-Preamble.dcm"];
 
-    let file_records: Vec<Value> = test_files.iter().map(create_file_record_value).collect();
+    let file_records: Vec<Value> = test_files
+        .iter()
+        .map(create_file_record_value)
+        .collect();
 
     let list_value = Value::list(file_records, Span::test_data());
 
@@ -186,37 +180,14 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let pipeline_data = plugin_test.eval_with("dcm name", list_value.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
-    let records = result.as_list()?;
+    assert_eq!(get_string_by_cell_path(&result, "0.PatientName"), "ExplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "0.TransferSyntax"), "1.2.840.10008.1.2.1");
 
-    assert_eq!(records.len(), 3, "Should process all 3 files");
+    assert_eq!(get_string_by_cell_path(&result, "1.PatientName"), "ExplicitVRBigEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "1.TransferSyntax"), "1.2.840.10008.1.2.2");
 
-    // Verify each record has the expected fields
-    for (i, val) in records.iter().enumerate() {
-        let record = val.as_record()?;
-
-        assert!(
-            record.get("TransferSyntax").is_some(),
-            "Record {} missing TransferSyntax",
-            i
-        );
-        assert!(
-            record.get("PatientName").is_some(),
-            "Record {} missing PatientName",
-            i
-        );
-    }
-
-    // Verify specific patient names match the filenames
-    let expected_names = [
-        "ExplicitVRLittleEndian-Preamble",
-        "ExplicitVRBigEndian-Preamble",
-        "ImplicitVRLittleEndian-Preamble",
-    ];
-
-    for (i, expected_name) in expected_names.iter().enumerate() {
-        let record = records[i].as_record()?;
-        assert_dicom_field!(record, "PatientName", *expected_name);
-    }
+    assert_eq!(get_string_by_cell_path(&result, "2.PatientName"), "ImplicitVRLittleEndian-Preamble");
+    assert_eq!(get_string_by_cell_path(&result, "2.TransferSyntax"), "1.2.840.10008.1.2");
 
     Ok(())
 }

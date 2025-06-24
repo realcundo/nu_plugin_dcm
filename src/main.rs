@@ -2,6 +2,7 @@ use nu_plugin::MsgPackSerializer;
 
 mod convert;
 mod dcm;
+mod dicomweb;
 mod meta;
 mod plugin;
 mod reader;

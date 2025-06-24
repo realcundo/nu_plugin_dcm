@@ -15,7 +15,11 @@ pub struct Decimallike<'a>(pub &'a PrimitiveValue, pub Span);
 impl From<Stringlike<'_>> for Value {
     fn from(v: Stringlike) -> Self {
         // TODO use rows/table like below?
-        let val = v.0.to_multi_str().iter().map(trim_string).join("\n");
+        let val =
+            v.0.to_multi_str()
+                .iter()
+                .map(trim_string)
+                .join("\n");
         Value::string(val, v.1)
     }
 }
@@ -31,7 +35,10 @@ impl From<Integerlike<'_>> for Value {
             0 => Value::nothing(v.1),
             1 => Value::int(i[0], v.1),
             _ => {
-                let t: Vec<Value> = i.into_iter().map(|i| Value::int(i, v.1)).collect();
+                let t: Vec<Value> = i
+                    .into_iter()
+                    .map(|i| Value::int(i, v.1))
+                    .collect();
 
                 // TODO use Record instead of List?
                 Value::list(t, v.1)
@@ -55,7 +62,10 @@ impl From<Decimallike<'_>> for Value {
             0 => Value::nothing(v.1),
             1 => Value::float(i[0], v.1),
             _ => {
-                let t: Vec<Value> = i.into_iter().map(|i| Value::float(i, v.1)).collect();
+                let t: Vec<Value> = i
+                    .into_iter()
+                    .map(|i| Value::float(i, v.1))
+                    .collect();
 
                 // TODO use Record instead of List?
                 Value::list(t, v.1)

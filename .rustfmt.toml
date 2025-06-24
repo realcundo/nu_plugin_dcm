@@ -1,0 +1,7 @@
+max_width = 150
+
+use_small_heuristics = "Max"
+fn_params_layout = "Vertical"
+single_line_if_else_max_width = 0
+single_line_let_else_max_width = 0
+chain_width = 0

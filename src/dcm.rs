@@ -1,6 +1,6 @@
 use dicom::{
     core::{DataDictionary, DicomValue, VR},
-    object::{mem::InMemElement, InMemDicomObject},
+    object::{InMemDicomObject, mem::InMemElement},
 };
 use indexmap::IndexMap;
 use nu_protocol::{Record, Span, Value};
@@ -8,8 +8,7 @@ use nu_protocol::{Record, Span, Value};
 use crate::convert::{Decimallike, Integerlike, Stringlike};
 
 pub struct DicomDump<'a, 'b> {
-    pub dcm_dictionary:
-        &'a dyn DataDictionary<Entry = dicom::core::dictionary::DataDictionaryEntryRef<'b>>,
+    pub dcm_dictionary: &'a dyn DataDictionary<Entry = dicom::core::dictionary::DataDictionaryEntryRef<'b>>,
 }
 
 impl DicomDump<'_, '_> {
@@ -35,8 +34,21 @@ impl DicomDump<'_, '_> {
         let key = self
             .dcm_dictionary
             .by_tag(header.tag)
-            .map(|r| r.alias.to_string())
-            .unwrap_or_else(|| format!("{:04X},{:04X}", header.tag.group(), header.tag.element()));
+            .map(|r| {
+                r.alias
+                    .to_string()
+            })
+            .unwrap_or_else(|| {
+                format!(
+                    "{:04X},{:04X}",
+                    header
+                        .tag
+                        .group(),
+                    header
+                        .tag
+                        .element()
+                )
+            });
 
         match elem.value() {
             DicomValue::Sequence(seq) => {
@@ -66,7 +78,6 @@ impl DicomDump<'_, '_> {
                     | VR::UI
                     | VR::SH
                     | VR::LO
-                    | VR::DT // TODO parse DT into nu datetime
                     | VR::PN // TODO parse PN?
                     | VR::AE
                     | VR::LT
@@ -77,13 +88,14 @@ impl DicomDump<'_, '_> {
                     | VR::OB // TODO pixel data are never read
                     | VR::OW // TODO pixel data are never read
                     | VR::SQ // TODO
-                    | VR::SV // TODO
                     | VR::UC // TODO
                     | VR::UN // TODO
+                    | VR::DA // TODO parse DA into nu date?
+                    | VR::DT // TODO parse DT into nu datetime
+                    | VR::TM // TODO
                     | VR::UT => {
                         index_map.insert(key, Stringlike(value, *span).into());
                     }
-                    VR::DA
                     | VR::IS
                     | VR::US
                     | VR::SS
@@ -94,7 +106,12 @@ impl DicomDump<'_, '_> {
                     | VR::UV => {
                         index_map.insert(key, Integerlike(value, *span).into());
                     }
-                    VR::TM | VR::DS | VR::FD | VR::FL | VR::OD | VR::OF => {
+                    VR::SV
+                    | VR::DS
+                    | VR::FD
+                    | VR::FL
+                    | VR::OD
+                    | VR::OF => {
                         index_map.insert(key, Decimallike(value, *span).into());
                     }
                 }
