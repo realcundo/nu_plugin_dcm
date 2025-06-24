@@ -1,27 +1,9 @@
 use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
 use nu_plugin_test_support::PluginTest;
 use nu_protocol::{record, IntoPipelineData, Span, Value};
-use std::path::PathBuf;
+use test_utils::{get_asset_base_path, get_asset_path};
 
-#[macro_export]
-macro_rules! assert_dicom_field {
-    ($record:expr, $field:expr, $expected:expr) => {
-        assert_eq!(
-            $record.get($field),
-            Some(&Value::string($expected, Span::test_data()))
-        );
-    };
-}
-
-fn get_asset_base_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("assets")
-}
-
-fn get_asset_path(filename: &str) -> PathBuf {
-    get_asset_base_path().join(filename)
-}
+mod test_utils;
 
 fn create_binary_value(filename: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let test_file = get_asset_path(filename);

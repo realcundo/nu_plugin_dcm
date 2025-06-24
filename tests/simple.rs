@@ -5,13 +5,9 @@ use nu_plugin_dcm::plugin::{DcmPlugin, DcmPluginCommand};
 use nu_protocol::{LabeledError, Record};
 
 use nu_protocol::{Span, Value};
+use test_utils::get_asset_path;
 
-fn get_asset_filename(filename: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("assets")
-        .join(filename)
-}
+mod test_utils;
 
 pub fn filepath(input: impl Into<PathBuf>) -> Value {
     let input: PathBuf = input.into();
@@ -39,7 +35,7 @@ fn no_input_without_errors() {
 
 #[test]
 fn read_explicit_vr_big_endian_preamble() {
-    let filename = get_asset_filename("ExplicitVRBigEndian-Preamble.dcm");
+    let filename = get_asset_path("ExplicitVRBigEndian-Preamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
@@ -65,7 +61,7 @@ fn read_explicit_vr_big_endian_preamble() {
 
 #[test]
 fn read_explicit_vr_little_endian_preamble() {
-    let filename = get_asset_filename("ExplicitVRLittleEndian-Preamble.dcm");
+    let filename = get_asset_path("ExplicitVRLittleEndian-Preamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
@@ -91,7 +87,7 @@ fn read_explicit_vr_little_endian_preamble() {
 
 #[test]
 fn read_implicit_vr_little_endian_preamble() {
-    let filename = get_asset_filename("ImplicitVRLittleEndian-Preamble.dcm");
+    let filename = get_asset_path("ImplicitVRLittleEndian-Preamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
@@ -117,7 +113,7 @@ fn read_implicit_vr_little_endian_preamble() {
 #[test]
 #[ignore]
 fn read_explicit_vr_big_endian_no_preamble() {
-    let filename = get_asset_filename("ExplicitVRBigEndian-NoPreamble.dcm");
+    let filename = get_asset_path("ExplicitVRBigEndian-NoPreamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
@@ -131,7 +127,7 @@ fn read_explicit_vr_big_endian_no_preamble() {
 #[test]
 #[ignore]
 fn read_explicit_vr_little_endian_no_preamble() {
-    let filename = get_asset_filename("ExplicitVRLittleEndian-NoPreamble.dcm");
+    let filename = get_asset_path("ExplicitVRLittleEndian-NoPreamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
@@ -145,7 +141,7 @@ fn read_explicit_vr_little_endian_no_preamble() {
 #[test]
 #[ignore]
 fn read_implicit_vr_little_endian_no_preamble() {
-    let filename = get_asset_filename("ImplicitVRLittleEndian-NoPreamble.dcm");
+    let filename = get_asset_path("ImplicitVRLittleEndian-NoPreamble.dcm");
     let current_dir = Ok(env::current_dir().unwrap());
     let current_dir = current_dir.as_deref();
 
