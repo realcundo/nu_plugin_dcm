@@ -8,7 +8,7 @@ Use `ls *.dcm | dcm`, `ls *.dcm | get name` or `ls *.dcm | select name type | dc
 A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedia.org/wiki/DICOM) objects.
 
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
-with all DICOM objects. One notable limitation is that all DICOM objects are expected to have a preamble.
+with all DICOM objects or DicomWeb inputs. See [Known limitations for details](#known-limitations).
 
 I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out,
 send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
@@ -40,6 +40,8 @@ See Examples for more details.
   ```
 
   Without `into binary`, `dcm` would see a list of strings, assuming it's a list of filenames.
+- For dicomweb inputs, only the first of "Alphabetic", "Ideographic", "Phonetic" Patient Names is extracted.
+- For dicomweb inputs, `BulkDataURI` and `InlineBinary` are not extracted and `nothing` is returned as their values.
 
 
 ## Examples
