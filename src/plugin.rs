@@ -1,4 +1,4 @@
-use std::io::{BufReader, Cursor};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use crate::dicomweb::{DicomWebDump, is_dicom_record};
@@ -179,8 +179,6 @@ impl DcmPluginCommand {
                 let byte_stream_reader = byte_stream
                     .reader()
                     .ok_or_else(|| LabeledError::new("Empty bytestream"))?;
-
-                let byte_stream_reader = BufReader::new(byte_stream_reader);
 
                 let obj = read_dcm_stream(byte_stream_reader)
                     .map_err(|e| LabeledError::new("Invalid DICOM data").with_label(e.to_string(), *input_span))?;
