@@ -16,7 +16,7 @@ fn no_input_without_errors() {
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, current_dir, &Value::test_nothing(), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &Value::test_nothing(), None);
 
     let expected =
         Err(LabeledError::new("Unrecognized type in stream")
@@ -34,7 +34,7 @@ fn read_explicit_vr_big_endian_preamble() {
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
     let actual_value = actual.unwrap();
 
     assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2.2");
@@ -52,7 +52,7 @@ fn read_explicit_vr_little_endian_preamble() {
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
 
-    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
     let actual_value = actual.unwrap();
 
     assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2.1");
@@ -69,7 +69,7 @@ fn read_implicit_vr_little_endian_preamble() {
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
     let actual_value = actual.unwrap();
 
     assert_eq!(get_string_by_cell_path(&actual_value, "TransferSyntax"), "1.2.840.10008.1.2");
@@ -87,7 +87,7 @@ fn read_explicit_vr_big_endian_no_preamble() {
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
 
     todo!()
 }
@@ -101,7 +101,7 @@ fn read_explicit_vr_little_endian_no_preamble() {
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
 
     todo!()
 }
@@ -115,7 +115,7 @@ fn read_implicit_vr_little_endian_no_preamble() {
 
     let p = DcmPlugin::default();
     let cmd = DcmPluginCommand;
-    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None, None);
+    let _actual = cmd.run_filter(&p, current_dir, &filepath(filename), None);
 
     todo!()
 }

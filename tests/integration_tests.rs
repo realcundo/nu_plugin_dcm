@@ -67,7 +67,39 @@ fn test_command_vector_open() -> Result<(), nu_protocol::ShellError> {
 fn test_command_ls() -> Result<(), nu_protocol::ShellError> {
     let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Ls)])?;
 
-    let result = plugin_test.eval("ls *.dcm | dcm name")?;
+    let result = plugin_test.eval("ls *.dcm | dcm")?;
+    let result = result.into_value(Span::test_data())?;
+
+    // TODO actually test the result
+    assert!(
+        result
+            .as_list()
+            .is_ok()
+    );
+    Ok(())
+}
+
+#[test]
+fn test_command_ls_select_name() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Ls), Box::new(nu_command::Select)])?;
+
+    let result = plugin_test.eval("ls *.dcm | select name | dcm")?;
+    let result = result.into_value(Span::test_data())?;
+
+    // TODO actually test the result
+    assert!(
+        result
+            .as_list()
+            .is_ok()
+    );
+    Ok(())
+}
+
+#[test]
+fn test_command_ls_get_name() -> Result<(), nu_protocol::ShellError> {
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Ls), Box::new(nu_command::Get)])?;
+
+    let result = plugin_test.eval("ls *.dcm | get name | dcm")?;
     let result = result.into_value(Span::test_data())?;
 
     // TODO actually test the result
@@ -143,7 +175,7 @@ fn test_string_file_path_input() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-/// Simulate `ls *.dcm | dcm name` matching a single file
+/// Simulate `ls *.dcm | dcm` matching a single file
 #[test]
 fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let mut plugin_test = setup_plugin_for_test(vec![])?;
@@ -152,7 +184,7 @@ fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let file_record = create_file_record_value("ImplicitVRLittleEndian-Preamble.dcm");
 
     // Test with column path 'name'
-    let pipeline_data = plugin_test.eval_with("dcm name", file_record.into_pipeline_data())?;
+    let pipeline_data = plugin_test.eval_with("dcm", file_record.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
     assert_eq!(get_string_by_cell_path(&result, "TransferSyntax"), "1.2.840.10008.1.2");
@@ -161,7 +193,7 @@ fn test_scalar_record_input() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Simulate `ls *.dcm | dcm name` with multiple matching files
+/// Simulate `ls *.dcm | dcm` with multiple matching files
 #[test]
 fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let mut plugin_test = setup_plugin_for_test(vec![])?;
@@ -177,7 +209,7 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
     let list_value = Value::list(file_records, Span::test_data());
 
     // Test with column path 'name'
-    let pipeline_data = plugin_test.eval_with("dcm name", list_value.into_pipeline_data())?;
+    let pipeline_data = plugin_test.eval_with("dcm", list_value.into_pipeline_data())?;
     let result = pipeline_data.into_value(Span::test_data())?;
 
     assert_eq!(get_string_by_cell_path(&result, "0.PatientName"), "ExplicitVRLittleEndian-Preamble");
@@ -188,6 +220,36 @@ fn test_vector_record_input() -> Result<(), Box<dyn std::error::Error>> {
 
     assert_eq!(get_string_by_cell_path(&result, "2.PatientName"), "ImplicitVRLittleEndian-Preamble");
     assert_eq!(get_string_by_cell_path(&result, "2.TransferSyntax"), "1.2.840.10008.1.2");
+
+    Ok(())
+}
+
+/// Fail on extra parameters being passed to dcm
+#[test]
+fn test_fail_on_extra_parameters() -> Result<(), Box<dyn std::error::Error>> {
+    let mut plugin_test = setup_plugin_for_test(vec![])?;
+
+    // Create a record that simulates what 'ls' would produce
+    let file_record = create_file_record_value("ImplicitVRLittleEndian-Preamble.dcm");
+
+    // Test with column path 'name'
+    let pipeline_data = plugin_test.eval_with("dcm name", file_record.into_pipeline_data());
+
+    let error = pipeline_data.unwrap_err();
+    if let nu_protocol::ShellError::LabeledError(labeled_error) = error {
+        assert_eq!(labeled_error.msg, "Example failed to parse"); // coming from plugin test
+
+        let inner_error = labeled_error
+            .inner
+            .get(0)
+            .expect("Expected an inner error");
+
+        dbg!(&inner_error);
+        assert_eq!(inner_error.msg, "Extra positional argument.");
+        assert_eq!(inner_error.help, Some("Usage: dcm {flags} ".to_string()));
+    } else {
+        panic!("Unexpected error {:?}", error);
+    }
 
     Ok(())
 }

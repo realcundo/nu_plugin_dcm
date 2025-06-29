@@ -10,7 +10,6 @@ use dicom::object::DefaultDicomObject;
 use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
 use nu_plugin::{EngineInterface, Plugin, PluginCommand};
-use nu_protocol::ast::CellPath;
 use nu_protocol::{Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span, SyntaxShape, Value};
 
 #[derive(Default)]
@@ -90,11 +89,6 @@ impl PluginCommand for DcmPluginCommand {
                 SyntaxShape::String,
                 "If an error occurs when Dicom object is parsed, the error message will be inserted in this column instead producing an error result.",
                 Some('e'))
-            .optional(
-                "column",
-                SyntaxShape::CellPath,
-                "Optional column name to use as Dicom source",
-            )
             .category(Category::Formats)  // More appropriate category
             .search_terms(vec!["dicom".to_string(), "medical".to_string(), "parse".to_string()])
             .description("Parse DICOM files and binary data")
@@ -113,9 +107,9 @@ impl PluginCommand for DcmPluginCommand {
                     ("ImageType".to_string(), Value::test_string("ORIGINAL\\PRIMARY")),
                 ]))),
             },
-            Example { description: "Parse DICOM files from a list", example: "ls *.dcm | dcm name", result: None },
+            Example { description: "Parse DICOM files from a list", example: "ls *.dcm | dcm", result: None },
             Example { description: "Parse a specific file by filename", example: "\"file.dcm\" | dcm", result: None },
-            Example { description: "Parse with error handling", example: "ls *.dcm | dcm name --error parse_error", result: None },
+            Example { description: "Parse with error handling", example: "ls *.dcm | dcm --error parse_error", result: None },
         ]
     }
 
@@ -147,14 +141,6 @@ impl PluginCommand for DcmPluginCommand {
             input.into_value(span)?
         };
 
-        // parse args, nu makes sure the num of args and type is correct
-        let source_column = call.nth(0);
-        let source_column = if let Some(Value::CellPath { val, .. }) = source_column {
-            Some(val)
-        } else {
-            None
-        };
-
         let error_column = call.get_flag_value("error");
         let error_column = if let Some(Value::String { val, .. }) = error_column {
             Some(val)
@@ -163,7 +149,7 @@ impl PluginCommand for DcmPluginCommand {
         };
 
         // run
-        let output = self.run_filter(plugin, current_dir.as_deref(), &input, source_column, error_column)?;
+        let output = self.run_filter(plugin, current_dir.as_deref(), &input, error_column)?;
 
         // Forward DataSource metadata from input to output, but clear any content type. This keeps the source.
         let output_metadata = input_metadata.map(|m| m.with_content_type(None));
@@ -178,19 +164,9 @@ impl DcmPluginCommand {
         plugin: &DcmPlugin,
         current_dir: Result<&Path, &ShellError>,
         value: &Value,
-        source_column: Option<CellPath>,
         error_column: Option<String>,
     ) -> Result<Value, LabeledError> {
-        // use source column if known
-        if let Some(source_column) = source_column {
-            let value = value.follow_cell_path(&source_column.members)?;
-
-            // AFAIK a list, process_value will handle it
-            self.process_value(plugin, current_dir, &value, &error_column)
-        } else {
-            // expect a primitive value if column is not known
-            self.process_value(plugin, current_dir, value, &error_column)
-        }
+        self.process_value(plugin, current_dir, value, &error_column)
     }
 
     fn process_value(
@@ -257,9 +233,17 @@ impl DcmPluginCommand {
 
                 if let (Some(record_type), Some(record_name)) = (record_type, record_name) {
                     if record_type == "file" {
-                        return Err(LabeledError::new("Cannot process file records directly")
-                            .with_help("Extract the filename first using: `dcm name`, `get name | dcm`, or `select name | dcm`")
-                            .with_label(format!("Found file record with name: '{record_name}'"), *internal_span));
+                        // make absolute if needed
+                        let file = resolve_path(record_name, current_dir, value.span())?;
+
+                        // merge with file-reading above (Value::String)?
+                        let obj = read_dcm_file(&file).map_err(|e| {
+                            let text = format!("{} [file {}]", e, file.to_string_lossy());
+
+                            LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
+                        })?;
+
+                        return self.process_dicom_object(plugin, internal_span, obj, error_column);
                     }
                 }
 

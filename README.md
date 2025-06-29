@@ -11,11 +11,12 @@ I'm still trying to figure out what is the most useful way of using this plugin.
 send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
-`dcm` plugin reads its input from single values, from specific columns, or from list of values:
-- `dcm`: expects a string/filename or binary DICOM data
-- `dcm $column_name`: reads a string/filename or binary DICOM data from `$column`. This is
-  equivalent to `get $column | dcm`.
-- `ls *.dcm | select name | dcm`: reads all files foun dby `ls` and returns a list of records.
+`dcm` plugin reads its input from single values, or from list of values:
+- `dcm`: expects a string/filename, file record (must contain `name` and `type`), dicomweb record, or binary DICOM data
+  - `ls *.dcm | dcm`: process a list of files, resulting in a list of dicom records
+  - `ls *.dcm | select name type | dcm`: process a list of files specified by their filename, resulting in a list of dicom records
+  - `open --raw file.dcm | into binary | dcm`: process a binary stream, resulting in a dicom record
+  - `open dicomweb.json | dcm`: process a dicomweb record, resulting in a dicom record
 
 See Examples for more details.
 
@@ -42,11 +43,14 @@ See Examples for more details.
 
 ### Output DICOM file as a record/table (list of records)
 ```sh
-echo file.dcm | dcm                   # uses filename/string to specify which file to open
-open --raw file.dcm | dcm             # pass binary data to `dcm`
-ls file.dcm | dcm name                # use `name` column as the filename (equivalent of `ls file.dcm | select name | dcm`)
-echo file.dcm | wrap foo | dcm foo    # use `foo` column as the filename
-open -r file.dcm | into binary | wrap foo | dcm foo # use `foo` column as binary data (see Known Limitations for details)
+echo file.dcm | dcm                      # uses filename/string to specify which file to open
+"file.dcm" | dcm                         # same asa above, uses filename/string to specify which file to open
+open --raw file.dcm | dcm                # pass (hopefully) binary data to `dcm`
+open --raw file.dcm | into binary | dcm  # pass binary data to `dcm`
+ls file.dcm | dcm                        # use file records as the filename
+ls file.dcm | select name type | dcm     # use file record-like records as the filename
+# ls file.dcm | select name | dcm        # fails because the record only contains `name` field.
+ls file.dcm | get name | dcm             # use a list of filenames (list of strings, rather than a list of records)
 ```
 
 ### Dump DICOM file as a JSON/YAML document
@@ -57,8 +61,8 @@ open -r file.dcm | dcm | to yaml
 
 ### Dump all DICOM files in the current directory to a JSON/YAML document
 ```sh
-ls *.dcm | dcm name | to json --indent 2
-ls *.dcm | dcm name | to yaml
+ls *.dcm | dcm | to json --indent 2
+ls *.dcm | dcm | to yaml
 ```
 
 ### Find all files in the current directory and subdirectories, parse them and group by Modality
@@ -66,7 +70,7 @@ ls *.dcm | dcm name | to yaml
 ```sh
 ls **/* |
   where type == file |
-  dcm name -e error |
+  dcm -e error |
   where error == "" |
   select --ignore-errors SOPInstanceUID Modality |
   group-by Modality
@@ -79,7 +83,7 @@ let files = (ls | where type == file)
 $files |
 select name size |
 merge ($files |
-  dcm name -e error |
+  dcm -e error |
   select --ignore-errors SOPInstanceUID Modality error
 ) |
 sort-by size
