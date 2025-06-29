@@ -27,7 +27,7 @@ nu-protocol = { version = "0.105.1", features = ["plugin"] }
 [dev-dependencies]
 nu-plugin-test-support = "0.105.1"
 nu-command = "0.105.1"
-test-case = "*"
+test-case = "3"
 
 [profile.release]
 lto = true
