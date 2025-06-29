@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, ErrorKind, Read, Seek, SeekFrom},
+    io::{BufReader, Cursor, Read},
     path::Path,
 };
 
@@ -13,14 +13,8 @@ pub enum Error {
     #[snafu(display("Could not read Dicom object: {}", source))]
     Io { source: std::io::Error },
 
-    #[snafu(display("Could not read Dicom preamble"))]
-    Preamble,
-
     #[snafu(display("Could not parse Dicom object: {}", source))]
     Dcm { source: dicom_object::ReadError },
-
-    #[snafu(display("Could not parse Dicom object (no preamble?): {}", source))]
-    DcmNoPreamble { source: dicom_object::ReadError },
 }
 
 pub fn read_dcm_file<P: AsRef<Path>>(path: P) -> Result<DefaultDicomObject, Error> {
@@ -29,44 +23,37 @@ pub fn read_dcm_file<P: AsRef<Path>>(path: P) -> Result<DefaultDicomObject, Erro
     read_dcm_stream(input)
 }
 
-pub fn read_dcm_stream<F: Seek + Read>(mut input: F) -> Result<DefaultDicomObject, Error> {
-    // TODO use lower level Dicom functions to avoid seeking back and forth and double-wrapping BufReaders
-
-    // read the first 128 + 4 bytes and check if DICM
-    let mut buf = [0u8; 128 + 4];
-
-    match input.read_exact(&mut buf) {
-        Ok(_) => {
-            // check if DICM
-            if buf[128..132] == *b"DICM" {
-                // need to rewind back 4 to get to the beginning of DICM again
-                input
-                    .seek(SeekFrom::Current(-4))
-                    .context(IoSnafu)?;
-
-                return read_dcm_stream_without_pixel_data(input).context(DcmSnafu);
-            }
-        }
-        Err(e) => {
-            // if seek error, fall through and try to read without preamble, otherwise fail now
-            if e.kind() != ErrorKind::UnexpectedEof {
-                return Err(Error::Io { source: e });
-            }
-        }
-    }
-
-    // Rewind to the start and try to read without the preamble
+pub fn read_dcm_stream<F: Read>(mut input: F) -> Result<DefaultDicomObject, Error> {
+    // Read the first 132 bytes into a temporary buffer to check for the preamble.
+    let mut buf = Vec::with_capacity(132);
     input
-        .seek(SeekFrom::Start(0))
+        .by_ref()
+        .take(132)
+        .read_to_end(&mut buf)
         .context(IoSnafu)?;
 
-    // TODO this will always fail -- dicom.rs needs DICM magic to read meta
-    read_dcm_stream_without_pixel_data(input).context(DcmNoPreambleSnafu)
-}
+    if buf.len() == 132 && &buf[128..132] == b"DICM" {
+        // "DICM" marker found. The data to parse starts with these 4 bytes.
+        // We create a new reader by chaining the "DICM" marker from our buffer
+        // with the rest of the original input stream.
+        let reader = Cursor::new(&buf[128..]).chain(input);
 
-fn read_dcm_stream_without_pixel_data<F: Read>(input: F) -> Result<DefaultDicomObject, dicom_object::ReadError> {
-    dicom_object::OpenFileOptions::new()
-        .read_until(dicom::dictionary_std::tags::PIXEL_DATA)
-        .read_preamble(dicom_object::file::ReadPreamble::Never)
-        .from_reader(input)
+        // Use the default OpenFileOptions to parse the File Meta Information.
+        dicom_object::OpenFileOptions::new()
+            .read_until(dicom::dictionary_std::tags::PIXEL_DATA)
+            .read_preamble(dicom_object::file::ReadPreamble::Never)
+            .from_reader(reader)
+            .context(DcmSnafu)
+    } else {
+        // No "DICM" marker. The entire buffer is part of the dataset.
+        // Create a reader from the buffer and chain it with the rest of the stream.
+        let reader = Cursor::new(buf).chain(input);
+
+        // Attempt to parse as a dataset without a preamble.
+        dicom_object::OpenFileOptions::new()
+            .read_until(dicom::dictionary_std::tags::PIXEL_DATA)
+            .read_preamble(dicom_object::file::ReadPreamble::Never)
+            .from_reader(reader)
+            .context(DcmSnafu)
+    }
 }

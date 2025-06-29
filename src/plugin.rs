@@ -10,9 +10,12 @@ use dicom::object::DefaultDicomObject;
 use dicom::object::StandardDataDictionary;
 use indexmap::IndexMap;
 use nu_plugin::{EngineInterface, Plugin, PluginCommand};
-use nu_protocol::{Category, Example, LabeledError, PipelineData, Record, ShellError, Signature, Span, SyntaxShape, Value};
+use nu_protocol::{
+    Category, Example, IntoInterruptiblePipelineData, IntoPipelineData, LabeledError, PipelineData, Record, ShellError, Signals, Signature, Span,
+    SyntaxShape, Value,
+};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DcmPlugin {
     pub dcm_dictionary: StandardDataDictionary,
 }
@@ -95,7 +98,7 @@ impl PluginCommand for DcmPluginCommand {
             .extra_description("Parse DICOM objects from files or binary data. Invalid DICOM objects are reported as errors and excluded from the output unless --error flag is used.")
     }
 
-    fn examples(&self) -> Vec<Example> {
+    fn examples(&self) -> Vec<Example<'_>> {
         vec![
             Example {
                 description: "Parse a DICOM file by passing binary data",
@@ -124,59 +127,74 @@ impl PluginCommand for DcmPluginCommand {
             .get_current_dir()
             .map(PathBuf::from);
 
-        let span = input
+        let input_span = input
             .span()
             .unwrap_or(call.head);
         let input_metadata = input.metadata();
 
-        // Convert input PipelineData to Value. The default behaviour for BinaryStream is to detect the type of the stream and if unknown, try to read it as a UTF-8 string.
-        // This behaviour is wrong for us, since we want to read any binary input stream as binary data.
-        // Unfortunately, a list of `[(`open file.dcm`), ...]` gets converted to a list of strings by nushell before we can access it.
-        let input = if let PipelineData::ByteStream(byte_stream, ..) = input {
-            // TODO eventually support streaming?
-            let bytes = byte_stream.into_bytes()?;
-            Value::binary(bytes, span)
-        } else {
-            // convert PipelineData to Value the usual way
-            input.into_value(span)?
-        };
-
-        let error_column = call.get_flag_value("error");
-        let error_column = if let Some(Value::String { val, .. }) = error_column {
-            Some(val)
-        } else {
-            None
-        };
+        let error_column = call.get_flag::<String>("error")?;
 
         // run
-        let output = self.run_filter(plugin, current_dir.as_deref(), &input, error_column)?;
+        // TODO find a way without cloning? ListStream::map() requires 'static lifetime, maybe I can use iterators directly?
+        let output = self.process_pipeline_data(plugin.clone(), current_dir, error_column, &input_span, input)?;
 
         // Forward DataSource metadata from input to output, but clear any content type. This keeps the source.
         let output_metadata = input_metadata.map(|m| m.with_content_type(None));
 
-        Ok(PipelineData::Value(output, output_metadata))
+        Ok(output.set_metadata(output_metadata))
     }
 }
 
 impl DcmPluginCommand {
-    pub fn run_filter(
+    pub fn process_pipeline_data(
         &self,
-        plugin: &DcmPlugin,
-        current_dir: Result<&Path, &ShellError>,
-        value: &Value,
+        plugin: DcmPlugin,
+        current_dir: Result<PathBuf, ShellError>,
         error_column: Option<String>,
-    ) -> Result<Value, LabeledError> {
-        self.process_value(plugin, current_dir, value, &error_column)
+        input_span: &Span,
+        input: PipelineData,
+    ) -> Result<PipelineData, LabeledError> {
+        match input {
+            // no-op
+            PipelineData::Empty => Ok(PipelineData::Empty),
+
+            // process value directly
+            PipelineData::Value(value, ..) => {
+                Self::process_value(&plugin, current_dir.as_deref(), &value, &error_column).map(Value::into_pipeline_data)
+            }
+
+            // map list of values one by one
+            PipelineData::ListStream(list_stream, ..) => {
+                // TODO should this fail immediately or generate errors?
+                let mapped_stream = list_stream.map(move |v| match Self::process_value(&plugin, current_dir.as_deref(), &v, &error_column) {
+                    Ok(value) => value,
+                    Err(e) => Value::error(e.into(), v.span()),
+                });
+
+                Ok(mapped_stream.into_pipeline_data(*input_span, Signals::EMPTY))
+            }
+
+            // process input bytestream directly without collecting it into memory
+            PipelineData::ByteStream(byte_stream, ..) => {
+                let byte_stream_reader = byte_stream
+                    .reader()
+                    .ok_or_else(|| LabeledError::new("Empty bytestream"))?;
+
+                let obj = read_dcm_stream(byte_stream_reader)
+                    .map_err(|e| LabeledError::new("Invalid DICOM data").with_label(e.to_string(), *input_span))?;
+
+                Self::process_dicom_object(&plugin, input_span, obj, &error_column).map(Value::into_pipeline_data)
+            }
+        }
     }
 
     fn process_value(
-        &self,
         plugin: &DcmPlugin,
         current_dir: Result<&Path, &ShellError>,
         value: &Value,
         error_column: &Option<String>,
     ) -> Result<Value, LabeledError> {
-        let result = self.process_value_with_normal_error(plugin, current_dir, value, error_column);
+        let result = Self::process_value_with_normal_error(plugin, current_dir, value, error_column);
 
         // TODO better value.span().unwrap()
         match (error_column, &result) {
@@ -198,7 +216,6 @@ impl DcmPluginCommand {
     }
 
     fn process_value_with_normal_error(
-        &self,
         plugin: &DcmPlugin,
         current_dir: Result<&Path, &ShellError>,
         value: &Value,
@@ -224,7 +241,7 @@ impl DcmPluginCommand {
                     LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
                 })?;
 
-                self.process_dicom_object(plugin, internal_span, obj, error_column)
+                Self::process_dicom_object(plugin, internal_span, obj, error_column)
             }
             Value::Record { val, internal_span } => {
                 // Check if a file record
@@ -243,7 +260,7 @@ impl DcmPluginCommand {
                             LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
                         })?;
 
-                        return self.process_dicom_object(plugin, internal_span, obj, error_column);
+                        return Self::process_dicom_object(plugin, internal_span, obj, error_column);
                     }
                 }
 
@@ -265,16 +282,13 @@ impl DcmPluginCommand {
                 let cursor = Cursor::new(val);
                 let obj = read_dcm_stream(cursor).map_err(|e| LabeledError::new("Invalid DICOM data").with_label(e.to_string(), *internal_span))?;
 
-                self.process_dicom_object(plugin, internal_span, obj, error_column)
+                Self::process_dicom_object(plugin, internal_span, obj, error_column)
             }
             Value::List { vals, internal_span, .. } => {
                 // Use either a dicom result or an error for each input element>
                 let result: Vec<Value> = vals
                     .iter()
-                    .map(|v| {
-                        self.process_value(plugin, current_dir, v, error_column)
-                            .unwrap_or_else(|e| Value::error(e.into(), *internal_span))
-                    })
+                    .map(|v| Self::process_value(plugin, current_dir, v, error_column).unwrap_or_else(|e| Value::error(e.into(), *internal_span)))
                     .collect();
 
                 Ok(Value::list(result, *internal_span))
@@ -285,7 +299,6 @@ impl DcmPluginCommand {
     }
 
     fn process_dicom_object(
-        &self,
         plugin: &DcmPlugin,
         span: &Span,
         obj: DefaultDicomObject,
