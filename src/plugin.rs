@@ -258,8 +258,8 @@ impl DcmPluginCommand {
                 }
 
                 // Output generic error
-                Err(LabeledError::new("Cannot process records directly, unless they are DicomWeb records")
-                    .with_label("For files, select file name or binary data from the record before passing it to dcm", *internal_span))
+                Err(LabeledError::new("Cannot process records directly, unless they are Fila or DicomWeb records")
+                    .with_label("For files, select file name, binary data, or use records with `name` and `type`", *internal_span))
             }
             Value::Binary { val, internal_span, .. } => {
                 let cursor = Cursor::new(val);

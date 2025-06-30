@@ -88,6 +88,26 @@ pub fn get_string_by_cell_path(
         .to_owned()
 }
 
+/// Asserts that the value at `path` is a list of strings and returns it. Panics on failure.
+#[allow(dead_code)]
+pub fn get_string_list_by_cell_path(
+    value: &Value,
+    path: &str,
+) -> Vec<String> {
+    let result_value = get_value_by_cell_path(value, path);
+    result_value
+        .as_list()
+        .and_then(|list| {
+            list.iter()
+                .map(|v| {
+                    v.as_str()
+                        .map(|s| s.to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .unwrap_or_else(|e| panic!("Expected list<string> at path '{}', but found '{}'. Error: {}", path, result_value.get_type(), e))
+}
+
 /// Asserts that the value at `path` is an int and returns it. Panics on failure.
 #[allow(dead_code)]
 pub fn get_int_by_cell_path(

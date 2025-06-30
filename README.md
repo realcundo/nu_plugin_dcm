@@ -8,14 +8,14 @@ Use `ls *.dcm | dcm`, `ls *.dcm | get name` or `ls *.dcm | select name type | dc
 A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedia.org/wiki/DICOM) objects.
 
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
-with all DICOM objects or DicomWeb inputs. See [Known limitations for details](#known-limitations).
+with all DICOM objects or DICOMweb records. See [Known limitations for details](#known-limitations).
 
 I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out,
 send feedback in [Discussions](https://github.com/realcundo/nu_plugin_dcm/discussions) or report problems in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
 `dcm` plugin reads its input from single values, or from list of values:
-- `dcm`: expects a string/filename, file record (must contain `name` and `type`), dicomweb record, or binary DICOM data
+- `dcm`: expects a string/filename, file record (must contain `name` and `type`), DICOMweb record, or binary DICOM data
   - `ls *.dcm | dcm`: process a list of files, resulting in a list of dicom records
   - `ls *.dcm | select name type | dcm`: process a list of files specified by their filename, resulting in a list of dicom records
   - `open --raw file.dcm | into binary | dcm`: process a binary stream, resulting in a dicom record
@@ -40,8 +40,8 @@ See Examples for more details.
   ```
 
   Without `into binary`, `dcm` would see a list of strings, assuming it's a list of filenames.
-- For dicomweb inputs, only the first of "Alphabetic", "Ideographic", "Phonetic" Patient Names is extracted.
-- For dicomweb inputs, `BulkDataURI` and `InlineBinary` are not extracted and `nothing` is returned as their values.
+- For DICOMweb inputs, only the first of "Alphabetic", "Ideographic", "Phonetic" Patient Names is extracted.
+- For DICOMweb inputs, `BulkDataURI` and `InlineBinary` are not extracted and `nothing` is returned as their values.
 
 
 ## Examples
