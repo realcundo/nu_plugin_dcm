@@ -33,11 +33,16 @@ pub fn is_dicom_record(record: &Record) -> bool {
             // Check https://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_F.2.2.html
             if let Ok(potential_record) = potential_value.as_record() {
                 potential_tag.len() == 8
+                    // the tag must be a valid hex string
                     && potential_tag
                         .chars()
                         .all(|c| c.is_ascii_hexdigit())
+                    // must contain "vr"
                     && potential_record.contains("vr")
-                    && (potential_record.contains("Value") || potential_record.contains("BulkDataURI") || potential_record.contains("InlineBinary"))
+                    // tags must be one of the following
+                    && (potential_record
+                        .iter()
+                        .all(|(key, _value)| key == "Value" || key == "BulkDataURI" || key == "InlineBinary" || key == "vr"))
             } else {
                 false
             }
@@ -143,8 +148,8 @@ impl DicomWebDump<'_, '_> {
         let value = match record.get("Value") {
             Some(value) => value,
             None => {
-                // don't return error if BulkDataURI/InlineBinary exist
-                if record.contains("BulkDataURI") || record.contains("InlineBinary") {
+                // don't return error if BulkDataURI/InlineBinary exist or if no other fields are present (just having "vr" with nothing else is valid)
+                if record.len() == 1 || record.contains("BulkDataURI") || record.contains("InlineBinary") {
                     return Ok(Value::nothing(record_span));
                 } else {
                     return Err(DicomWebError::MissingRequiredColumn { column: "Value|BulkDataURI|InlineBinary", span: record_span });
