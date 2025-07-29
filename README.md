@@ -1,16 +1,16 @@
 # nu_plugin_dcm
 
-*Compatibility Matrix*
-| nu version | nu_plugin_dcm version |
-|------------|-----------------------|
-| 0.106.x    | 0.4.0                 |
-| 0.105.x    | 0.3.2                 |
-| 0.60.x     | 0.1.8                 |
+A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedia.org/wiki/DICOM) objects.
+
+## Compatibility Matrix
+| nushell version | nu_plugin_dcm version |
+|-----------------|-----------------------|
+| 0.106.x         | 0.4.0                 |
+| 0.105.x         | 0.3.2                 |
+| 0.60.x          | 0.1.8                 |
 
 *Also note that this version is not fully compatible with 0.2.x and earlier versions of this plugin. The main difference is that `ls *.dcm | dcm name` doesn't work anymore.
 Use `ls *.dcm | dcm`, `ls *.dcm | get name` or `ls *.dcm | select name type | dcm` instead. `dcm name` is now reserved for the future to select dicom tags.*
-
-A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedia.org/wiki/DICOM) objects.
 
 This plugin is in the early stage of the development. It is usable but it might not be able to cope
 with all DICOM objects or DICOMweb records. See [Known limitations for details](#known-limitations).
