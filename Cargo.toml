@@ -18,15 +18,15 @@ rust-version = "1.85.1"
 [dependencies]
 snafu = "0.8"                                           # ideally should match dicom
 dicom = { version = "0.8.2", default-features = false }
-indexmap = "2.10"                                       # to match the version from nu
+indexmap = "2.11"                                       # to match the version from nu
 itertools = "0.14"
 
-nu-plugin = "0.106.0"
-nu-protocol = { version = "0.106.0", features = ["plugin"] }
+nu-plugin = "0.107.0"
+nu-protocol = { version = "0.107.0", features = ["plugin"] }
 
 [dev-dependencies]
-nu-plugin-test-support = "0.106.0"
-nu-command = "0.106.0"
+nu-plugin-test-support = "0.107.0"
+nu-command = "0.107.0"
 test-case = "3"
 
 [profile.release]
