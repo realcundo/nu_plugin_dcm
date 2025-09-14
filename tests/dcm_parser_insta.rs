@@ -1,14 +1,25 @@
 use crate::test_utils::get_asset_base_path;
 use insta::{assert_ron_snapshot, glob};
 use nu_protocol::Span;
+use std::fs;
 use test_utils::setup_plugin_for_test;
 
 mod test_utils;
 
 #[test]
 fn private_assets() -> Result<(), nu_protocol::ShellError> {
-    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Open)])?;
     let asset_path = get_asset_base_path().join("private");
+
+    // skip if there's only ".empty" file since glob!() would fail otherwise
+    if fs::read_dir(&asset_path)
+        .expect("failed to read assets directory")
+        .count()
+        <= 1
+    {
+        return Ok(());
+    }
+
+    let mut plugin_test = setup_plugin_for_test(vec![Box::new(nu_command::Open)])?;
 
     let insta_filters = vec![
         // replace nu::Span with empty string:
