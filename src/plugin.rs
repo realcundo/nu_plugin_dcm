@@ -249,7 +249,7 @@ impl DcmPluginCommand {
                 let record_name = get_record_string(val, "name");
 
                 if let (Some(record_type), Some(record_name)) = (record_type, record_name) {
-                    if record_type == "file" {
+                    if record_type == "file" || record_type == "symlink" {
                         // make absolute if needed
                         let file = resolve_path(record_name, current_dir, value.span())?;
 
@@ -275,7 +275,7 @@ impl DcmPluginCommand {
                 }
 
                 // Output generic error
-                Err(LabeledError::new("Cannot process records directly, unless they are Fila or DicomWeb records")
+                Err(LabeledError::new("Cannot process records directly, unless they are File or DicomWeb records")
                     .with_label("For files, select file name, binary data, or use records with `name` and `type`", *internal_span))
             }
             Value::Binary { val, internal_span, .. } => {
