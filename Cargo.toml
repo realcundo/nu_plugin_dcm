@@ -28,7 +28,7 @@ nu-protocol = { version = "0.107.0", features = ["plugin"] }
 nu-plugin-test-support = "0.107.0"
 nu-command = "0.107.0"
 test-case = "3"
-insta = { version = "1.43", default-features = false, features = ["glob", "ron"] }
+insta = { version = "1.43", default-features = false, features = ["glob", "redactions", "filters", "ron"] }
 
 [profile.dev.package]
 insta.opt-level = 3
