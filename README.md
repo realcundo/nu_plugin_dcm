@@ -6,7 +6,7 @@ A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedi
 
 | nushell version | nu_plugin_dcm version |
 |-----------------|-----------------------|
-| 0.108.x         | 0.6.x                 |
+| 0.108.x         | 0.8.x                 |
 | 0.107.x         | 0.5.x                 |
 | 0.106.x         | 0.4.x                 |
 | 0.105.x         | 0.3.2                 |
