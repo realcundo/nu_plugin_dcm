@@ -1,6 +1,6 @@
 use dicom::{
     core::{DataDictionary, DicomValue, VR},
-    object::{InMemDicomObject, mem::InMemElement},
+    object::{mem::InMemElement, InMemDicomObject},
 };
 use indexmap::IndexMap;
 use nu_protocol::{Record, Span, Value};
@@ -59,7 +59,12 @@ impl DicomDump<'_, '_> {
                         let mut nested_index_map = IndexMap::with_capacity(1000);
                         self.make_row_from_dicom_object(span, &mut nested_index_map, obj);
 
-                        Value::record(Record::from_iter(nested_index_map), *span)
+                        // if the map is empty, output Nothing rather than an empty record
+                        if nested_index_map.is_empty() {
+                            Value::nothing(*span)
+                        } else {
+                            Value::record(Record::from_iter(nested_index_map), *span)
+                        }
                     })
                     .collect();
 
