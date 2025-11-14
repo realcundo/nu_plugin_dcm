@@ -6,6 +6,7 @@ A [nushell](https://www.nushell.sh/) plugin to parse [DICOM](https://en.wikipedi
 
 | nushell version | nu_plugin_dcm version |
 |-----------------|-----------------------|
+| 0.108.x         | 0.6.x                 |
 | 0.107.x         | 0.5.x                 |
 | 0.106.x         | 0.4.x                 |
 | 0.105.x         | 0.3.2                 |
@@ -16,7 +17,7 @@ is that `ls *.dcm | dcm name` doesn't work anymore.
 Use `ls *.dcm | dcm`, `ls *.dcm | get name` or `ls *.dcm | select name type | dcm` instead. `dcm name` is now reserved
 for the future to select dicom tags.*
 
-This plugin is in the early stage of the development. It is usable but it might not be able to cope
+This plugin is in the early stage of the development. It is usable, but it might not be able to cope
 with all DICOM objects or DICOMweb records. See [Known limitations for details](#known-limitations).
 
 I'm still trying to figure out what is the most useful way of using this plugin. Please feel free to try it out,
@@ -25,7 +26,7 @@ in [Issues](https://github.com/realcundo/nu_plugin_dcm/issues).
 
 ## Usage
 
-`dcm` plugin reads its input from single values, or from list of values:
+`dcm` plugin reads its input from single values or from list of values:
 
 - `dcm`: expects a string/filename, file record (must contain `name` and `type`), DICOMweb record, or binary DICOM data
     - `ls *.dcm | dcm`: process a list of files, resulting in a list of dicom records
@@ -88,7 +89,7 @@ ls *.dcm | dcm | to json --indent 2
 ls *.dcm | dcm | to yaml
 ```
 
-### Find all files in the current directory and subdirectories, parse them and group by Modality
+### Find all files in the current directory and subdirectories, parse them, and group by Modality
 
 ```sh
 ls **/* |
@@ -99,7 +100,7 @@ ls **/* |
   group-by Modality
 ```
 
-### For each file in the current directory, show the filename, file size, SOP Instance UID and Modality, and sort by SOP Instance UID
+### For each file in the current directory, show the filename, file size, SOP Instance UID, and Modality, and sort by SOP Instance UID
 
 ```sh
 let files = (ls | where type == file)
@@ -117,7 +118,7 @@ Note that when a file cannot be parsed, it won't have `SOPInstanceUID`, etc. col
 would fail since selected columns are missing. Another option would be using `default "" SOPInstanceUID` to add values
 for missing columns.)
 
-### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID and a DICOM parsing error, if any
+### For each file in all subdirectories, show filename, file size, SHA256 hash of the file, SOP Instance UID, and a DICOM parsing error, if any
 
 Use `par-each` to process files in parallel:
 

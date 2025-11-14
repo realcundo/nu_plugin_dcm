@@ -227,7 +227,7 @@ impl DicomWebDump<'_, '_> {
         match value {
             Value::Nothing { .. } => Ok(value.clone()),
             Value::Float { .. } => Ok(value.clone()),
-            Value::Int { val, internal_span } => Ok(Value::float(*val as f64, *internal_span)),
+            Value::Int { val, internal_span, .. } => Ok(Value::float(*val as f64, *internal_span)),
             Value::List { vals, .. } => {
                 if vals.is_empty() {
                     return Ok(Value::nothing(value.span()));
@@ -237,7 +237,7 @@ impl DicomWebDump<'_, '_> {
                     .iter()
                     .map(|v| match v {
                         Value::Float { .. } => Ok(v.clone()),
-                        Value::Int { val, internal_span } => Ok(Value::float(*val as f64, *internal_span)),
+                        Value::Int { val, internal_span, .. } => Ok(Value::float(*val as f64, *internal_span)),
                         _ => Err(DicomWebError::InvalidType { expected: "list of numbers", actual: v.get_type(), span: v.span() }),
                     })
                     .collect();

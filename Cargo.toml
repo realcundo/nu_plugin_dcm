@@ -11,7 +11,7 @@ include = ["src/**/*", "LICENSE", "README.md"]
 
 # same as nushell
 edition = "2024"
-rust-version = "1.87.0"
+rust-version = "1.89.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,12 +21,12 @@ indexmap = "2.11"                                       # to match the version f
 dicom = { version = "0.9.0", default-features = false }
 itertools = "0.14"
 
-nu-plugin = "0.107.0"
-nu-protocol = { version = "0.107.0", features = ["plugin"] }
+nu-plugin = "0.108.0"
+nu-protocol = { version = "0.108.0", features = ["plugin"] }
 
 [dev-dependencies]
-nu-plugin-test-support = "0.107.0"
-nu-command = "0.107.0"
+nu-plugin-test-support = "0.108.0"
+nu-command = "0.108.0"
 test-case = "3"
 insta = { version = "1.43", default-features = false, features = ["glob", "redactions", "filters", "ron"] }
 

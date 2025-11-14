@@ -1,7 +1,7 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use crate::dicomweb::{DicomWebDump, is_dicom_record};
+use crate::dicomweb::{is_dicom_record, DicomWebDump};
 use crate::meta::make_row_from_dicom_metadata;
 use crate::reader::{read_dcm_file, read_dcm_stream};
 
@@ -243,25 +243,25 @@ impl DcmPluginCommand {
 
                 Self::process_dicom_object(plugin, internal_span, obj, error_column)
             }
-            Value::Record { val, internal_span } => {
+            Value::Record { val, internal_span, .. } => {
                 // Check if a file record
                 let record_type = get_record_string(val, "type");
                 let record_name = get_record_string(val, "name");
 
-                if let (Some(record_type), Some(record_name)) = (record_type, record_name) {
-                    if record_type == "file" || record_type == "symlink" {
-                        // make absolute if needed
-                        let file = resolve_path(record_name, current_dir, value.span())?;
+                if let (Some(record_type), Some(record_name)) = (record_type, record_name)
+                    && (record_type == "file" || record_type == "symlink")
+                {
+                    // make absolute if needed
+                    let file = resolve_path(record_name, current_dir, value.span())?;
 
-                        // merge with file-reading above (Value::String)?
-                        let obj = read_dcm_file(&file).map_err(|e| {
-                            let text = format!("{} [file {}]", e, file.to_string_lossy());
+                    // merge with file-reading above (Value::String)?
+                    let obj = read_dcm_file(&file).map_err(|e| {
+                        let text = format!("{} [file {}]", e, file.to_string_lossy());
 
-                            LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
-                        })?;
+                        LabeledError::new("`dcm` expects valid DICOM binary data").with_label(text, *internal_span)
+                    })?;
 
-                        return Self::process_dicom_object(plugin, internal_span, obj, error_column);
-                    }
+                    return Self::process_dicom_object(plugin, internal_span, obj, error_column);
                 }
 
                 // Check if it looks like a dicomweb record.

@@ -56,7 +56,7 @@ impl DicomDump<'_, '_> {
                     .items()
                     .iter()
                     .map(|obj| {
-                        let mut nested_index_map = IndexMap::with_capacity(1000);
+                        let mut nested_index_map = IndexMap::with_capacity(100);
                         self.make_row_from_dicom_object(span, &mut nested_index_map, obj);
 
                         // if the map is empty, output Nothing rather than an empty record
